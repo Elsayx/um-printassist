@@ -1,3 +1,5 @@
+import { t, countLabel, getLanguage } from '../i18n'
+import { useLanguage } from '../i18n/useLanguage'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowLeft,
@@ -41,11 +43,22 @@ type Props = {
   filters: BrowseFilters
   onFilters: (next: BrowseFilters) => void
 }
-const plural = (n: number, s: string) => n + ' ' + s + (n === 1 ? '' : 's')
+const plural = countLabel
 const methodLabel = (site: PrinterSite) =>
   site.method === 'quota'
-    ? 'Follow-You · Printing quota'
-    : paymentNames[site.method]
+    ? t('Follow-You · Printing quota')
+    : t(paymentNames[site.method])
+
+// Add translated place names without changing the directory's existing search rules.
+const normalizeSearch = (text: string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase().trim()
+function matchLocalizedSites(directory: PrinterSite[], filters: BrowseFilters) {
+  const original = new Set(matchSites(directory, filters).map(site => site.id))
+  if (!filters.query.trim() || getLanguage() === 'en') return directory.filter(site => original.has(site.id))
+  const query = normalizeSearch(filters.query)
+  return matchSites(directory, { ...filters, query: '' }).filter(site =>
+    original.has(site.id) || normalizeSearch(t(site.buildingName) + ' ' + t(site.location)).includes(query),
+  )
+}
 
 function SiteCard({
   site,
@@ -73,12 +86,12 @@ function SiteCard({
           onClick={onToggle}
         >
           <span>
-            <strong>{site.location}</strong>
+            <strong>{t(site.location)}</strong>
             <small>
               <CreditCard size={13} />
               {methodLabel(site)}
               {count != null
-                ? ' · ' + count + (demo ? ' pending (demo)' : ' pending')
+                ? ' · ' + t(demo ? '{count} pending (demo)' : '{count} pending', { count })
                 : ''}
             </small>
           </span>
@@ -90,81 +103,64 @@ function SiteCard({
           <dl>
             <div>
               <dt>
-                <Timer />
-                Pending jobs
-              </dt>
+                <Timer />{t("Pending jobs")}</dt>
               <dd>
                 {demo ? (
                   <>
-                    <b>{count}</b> · simulated
-                  </>
+                    <b>{count}</b>{t(" · simulated")}</>
                 ) : (
-                  (count ?? 'Live count unavailable')
+                  (count ?? t('Live count unavailable'))
                 )}
               </dd>
             </div>
             {!demo && reading && (
               <div>
                 <dt>
-                  <Printer />
-                  Reported device status
-                </dt>
+                  <Printer />{t("Reported device status")}</dt>
                 <dd>
                   {reading.availability === 'unknown'
-                    ? 'Not reported'
+                    ? t('Not reported')
                     : reading.availability === 'available'
-                      ? 'Available'
-                      : 'Unavailable'}
+                      ? t('Available')
+                      : t('Unavailable')}
                 </dd>
               </div>
             )}
             {!demo && reading && (
               <div>
                 <dt>
-                  <Clock3 />
-                  Status observed
-                </dt>
+                  <Clock3 />{t("Status observed")}</dt>
                 <dd>
                   <time dateTime={new Date(reading.observedAt).toISOString()}>
-                    {new Intl.DateTimeFormat('en-GB', {
+                    {new Intl.DateTimeFormat(getLanguage() === 'en' ? 'en-GB' : getLanguage(), {
                       timeZone: 'Asia/Macau',
                       day: 'numeric',
                       month: 'short',
                       hour: '2-digit',
                       minute: '2-digit',
-                    }).format(reading.observedAt)}{' '}
-                    (Macao)
-                  </time>
+                    }).format(reading.observedAt)}{' '}{t("(Macao)")}</time>
                 </dd>
               </div>
             )}
             <div>
               <dt>
-                <Clock3 />
-                Service availability
-              </dt>
-              <dd>{site.service}</dd>
+                <Clock3 />{t("Service availability")}</dt>
+              <dd>{t(site.service)}</dd>
             </div>
             <div>
               <dt>
-                <Headphones />
-                Support hours
-              </dt>
-              <dd>{site.support}</dd>
+                <Headphones />{t("Support hours")}</dt>
+              <dd>{t(site.support)}</dd>
             </div>
             <div>
               <dt>
-                <CreditCard />
-                Payment
-              </dt>
-              <dd>{site.methodDetail || paymentNames[site.method]}</dd>
+                <CreditCard />{t("Payment")}</dt>
+              <dd>{t(site.methodDetail || paymentNames[site.method])}</dd>
             </div>
             {site.units !== undefined && (
               <div>
                 <dt>
-                  <Printer />
-                  Listed devices
-                </dt>
+                  <Printer />{t("Listed devices")}</dt>
                 <dd>{site.units}</dd>
               </div>
             )}
@@ -172,11 +168,11 @@ function SiteCard({
           {site.access && (
             <p className="pb-access">
               <Info size={15} />
-              {site.access}
+              {t(site.access)}
             </p>
           )}
           <div className="pb-sources">
-            <strong>Sources</strong>
+            <strong>{t("Sources")}</strong>
             {site.sources.map((source) => (
               <a
                 key={source.url}
@@ -184,9 +180,9 @@ function SiteCard({
                 target="_blank"
                 rel="noreferrer"
               >
-                {source.label}
+                {t(source.label)}
                 <ArrowUpRight size={13} />
-                <span className="pa-sr"> (opens in a new tab)</span>
+                <span className="pa-sr">{t(" (opens in a new tab)")}</span>
               </a>
             ))}
           </div>
@@ -204,6 +200,7 @@ export default function PrinterBrowser({
   studentTotal,
   onStudentTotal,
 }: Props) {
+  const language = useLanguage()
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [expanded, setExpanded] = useState<string | null | undefined>(undefined)
   const [mobileView, setMobileView] = useState<'map' | 'list'>('map')
@@ -215,7 +212,7 @@ export default function PrinterBrowser({
     () => distributeStudents(sites, studentTotal),
     [studentTotal],
   )
-  const filtered = useMemo(() => matchSites(sites, filters), [filters])
+  const filtered = useMemo(() => matchLocalizedSites(sites, filters), [filters, language])
   const groups = useMemo(
     () =>
       groupSites(filtered, sites).map((group) => ({
@@ -256,7 +253,7 @@ export default function PrinterBrowser({
     onFilters(next)
     if (
       selected &&
-      !matchSites(sites, next).some((item) => item.building === selected)
+      !matchLocalizedSites(sites, next).some((item) => item.building === selected)
     )
       onSelect(null)
   }
@@ -277,22 +274,19 @@ export default function PrinterBrowser({
     <section className="pb-page" aria-labelledby="pb-title">
       <header className="pb-header">
         <div>
-          <h1 id="pb-title">Find a printer</h1>
-          <p>
-            Explore campus locations, check service hours and choose how to pay.
-          </p>
+          <p className="pa-eyebrow">{t("Campus directory")}</p>
+          <h1 id="pb-title">{t("Find a printer")}</h1>
+          <p>{t("Explore campus locations, check service hours and choose how to pay.")}</p>
         </div>
         <div className="pb-header-tools">
-          <label className="pb-data-mode">
-            Queue data
-            <select
+          <label className="pb-data-mode">{t("Queue data")}<select
               value={filters.queue}
               onChange={(e) =>
                 setFilter('queue', e.target.value as BrowseFilters['queue'])
               }
             >
-              <option value="actual">Campus information</option>
-              <option value="demo">Simulated students</option>
+              <option value="actual">{t("Campus information")}</option>
+              <option value="demo">{t("Simulated students")}</option>
             </select>
           </label>
           <a
@@ -301,26 +295,24 @@ export default function PrinterBrowser({
             target="_blank"
             rel="noreferrer"
           >
-            <MapPin size={15} />
-            Official UM eMap
-            <ArrowUpRight size={14} />
-            <span className="pa-sr"> (opens in a new tab)</span>
+            <MapPin size={15} />{t("Official UM eMap")}<ArrowUpRight size={14} />
+            <span className="pa-sr">{t(" (opens in a new tab)")}</span>
           </a>
         </div>
       </header>
       {simulated && (
         <StudentScenario total={studentTotal} onApply={onStudentTotal} />
       )}
-      <section className="pb-toolbar" aria-label="Search and filter printers">
+      <section className="pb-toolbar" aria-label={t("Search and filter printers")}>
         <div className="pb-searchrow">
           <label className="pb-search">
             <Search size={18} />
-            <span className="pa-sr">Search printers</span>
+            <span className="pa-sr">{t("Search printers")}</span>
             <input
               type="search"
               ref={searchRef}
               value={filters.query}
-              placeholder="Building, floor or room"
+              placeholder={t("Building, floor or room")}
               onChange={(e) => setFilter('query', e.target.value)}
             />
           </label>
@@ -331,83 +323,71 @@ export default function PrinterBrowser({
             aria-expanded={filtersOpen}
             aria-controls="pb-filter-controls"
           >
-            <SlidersHorizontal size={16} />
-            Filters{activeFilters > 0 ? ' (' + activeFilters + ')' : ''}
+            <SlidersHorizontal size={16} />{t("Filters")}{activeFilters > 0 ? t(' (' + activeFilters + ')') : ''}
           </button>
         </div>
         <div
           className={'pb-controls' + (filtersOpen ? ' pb-controls-open' : '')}
           id="pb-filter-controls"
         >
-          <label>
-            Payment method
-            <select
+          <label>{t("Payment method")}<select
               value={filters.method}
               onChange={(e) =>
                 setFilter('method', e.target.value as BrowseFilters['method'])
               }
             >
-              <option value="all">All methods</option>
-              <option value="quota">Printing quota</option>
-              <option value="macaupass">Macau Pass</option>
-              <option value="unknown">Payment unlisted</option>
+              <option value="all">{t("All methods")}</option>
+              <option value="quota">{t("Printing quota")}</option>
+              <option value="macaupass">{t("Macau Pass")}</option>
+              <option value="unknown">{t("Payment unlisted")}</option>
             </select>
           </label>
-          <label>
-            Service hours
-            <select
+          <label>{t("Service hours")}<select
               value={filters.hours}
               onChange={(e) =>
                 setFilter('hours', e.target.value as BrowseFilters['hours'])
               }
             >
-              <option value="all">All schedules</option>
-              <option value="24h">24-hour service</option>
-              <option value="scheduled">Location schedule</option>
-              <option value="unknown">Hours unlisted</option>
+              <option value="all">{t("All schedules")}</option>
+              <option value="24h">{t("24-hour service")}</option>
+              <option value="scheduled">{t("Location schedule")}</option>
+              <option value="unknown">{t("Hours unlisted")}</option>
             </select>
           </label>
         </div>
       </section>
       <div className="pb-statusline">
         <span role="status" aria-live="polite">
-          {plural(filtered.length, 'listing')} in{' '}
+          {plural(filtered.length, 'listing')}{t(" in")}{' '}
           {plural(groups.length, 'building')}
           {simulated && (
             <>
               {' '}
-              · <strong>{plural(studentTotal, 'student')} campus-wide</strong>
+              · <strong>{plural(studentTotal, 'student')}{t(" campus-wide")}</strong>
               {filtered.length !== sites.length && (
                 <>
                   {' '}
-                  · {plural(visibleStudents, 'student')} in matching listings
-                </>
+                  · {plural(visibleStudents, 'student')}{t(" in matching listings")}</>
               )}
             </>
           )}
         </span>
         {hasFilters && (
           <button onClick={reset}>
-            <X size={13} />
-            Clear filters
-          </button>
+            <X size={13} />{t("Clear filters")}</button>
         )}
       </div>
-      <div className="pb-mobile-switch" role="group" aria-label="Browse view">
+      <div className="pb-mobile-switch" role="group" aria-label={t("Browse view")}>
         <button
           aria-pressed={mobileView === 'map'}
           onClick={() => setMobileView('map')}
         >
-          <Layers3 size={16} />
-          Map
-        </button>
+          <Layers3 size={16} />{t("Map")}</button>
         <button
           aria-pressed={mobileView === 'list'}
           onClick={() => setMobileView('list')}
         >
-          <List size={16} />
-          Locations
-        </button>
+          <List size={16} />{t("Locations")}</button>
       </div>
       <div className={'pb-grid pb-show-' + mobileView}>
         <div className="pb-mapcol">
@@ -421,7 +401,7 @@ export default function PrinterBrowser({
         <section
           className="pb-list"
           id="pb-list"
-          aria-label="Matching printer locations"
+          aria-label={t("Matching printer locations")}
         >
           {selectedGroup ? (
             <>
@@ -431,21 +411,19 @@ export default function PrinterBrowser({
                   className="pb-back"
                   onClick={() => onSelect(null)}
                 >
-                  <ArrowLeft size={15} />
-                  All locations
-                </button>
+                  <ArrowLeft size={15} />{t("All locations")}</button>
                 <span className="pb-building-code">
                   {selectedGroup.building}
                 </span>
                 <h2 tabIndex={-1} ref={resultsRef}>
-                  {selectedGroup.buildingName}
+                  {t(selectedGroup.buildingName)}
                 </h2>
                 <p>
                   {plural(selectedGroup.count, 'matching listing')}
                   {simulated &&
                     ' · ' + plural(selectedGroup.students, 'simulated student')}
                   {selectedGroup.devices !== null
-                    ? ' · ' + plural(selectedGroup.devices, 'listed device')
+                    ? t(' · ' + plural(selectedGroup.devices, 'listed device'))
                     : ''}
                 </p>
               </div>
@@ -468,10 +446,8 @@ export default function PrinterBrowser({
           ) : (
             <>
               <div className="pb-list-head">
-                <h2 tabIndex={-1} ref={resultsRef}>
-                  Printer locations
-                </h2>
-                <p>Select a building for rooms and printer details.</p>
+                <h2 tabIndex={-1} ref={resultsRef}>{t("Printer locations")}</h2>
+                <p>{t("Select a building for rooms and printer details.")}</p>
               </div>
               {groups.length > 0 ? (
                 <ul className="pb-buildings">
@@ -481,19 +457,19 @@ export default function PrinterBrowser({
                         type="button"
                         onClick={() => selectBuilding(group.building)}
                         aria-label={
-                          group.building +
+                          t(group.building +
                           ' ' +
-                          group.buildingName +
+                          t(group.buildingName) +
                           ', ' +
                           plural(group.count, 'location') +
                           (simulated
                             ? ', ' + plural(group.students, 'simulated student')
-                            : '')
+                            : ''))
                         }
                       >
                         <span className="pb-code">{group.building}</span>
                         <span className="pb-building-text">
-                          <strong>{group.buildingName}</strong>
+                          <strong>{t(group.buildingName)}</strong>
                           <small>
                             {simulated && (
                               <>
@@ -507,7 +483,7 @@ export default function PrinterBrowser({
                             {[
                               ...new Set(
                                 group.entries.map(
-                                  (entry) => paymentNames[entry.method],
+                                  (entry) => t(paymentNames[entry.method]),
                                 ),
                               ),
                             ].join(' / ')}
@@ -521,8 +497,8 @@ export default function PrinterBrowser({
               ) : (
                 <div className="pb-empty">
                   <Search size={23} />
-                  <h3>No matching locations</h3>
-                  <p>Try a building code such as E6, or change a filter.</p>
+                  <h3>{t("No matching locations")}</h3>
+                  <p>{t("Try a building code such as E6, or change a filter.")}</p>
                 </div>
               )}
             </>
@@ -530,32 +506,20 @@ export default function PrinterBrowser({
         </section>
       </div>
       {groups.length === 0 && mobileView === 'map' && (
-        <p className="pb-empty-mobile">
-          No locations match this search. Change a filter or clear the search.
-        </p>
+        <p className="pb-empty-mobile">{t("No locations match this search. Change a filter or clear the search.")}</p>
       )}
       <p className="pb-data-note">
         {simulated ? <Info size={17} /> : <WifiOff size={17} />}
         <span>
           {simulated ? (
             <>
-              <strong>Student simulation.</strong> Counts describe this scenario
-              only. Actual demand on campus may differ.
-            </>
+              <strong>{t("Student simulation.")}</strong>{t(" Counts describe this scenario only. Actual demand on campus may differ.")}</>
           ) : status.byId.size > 0 ? (
             <>
-              <strong>Recent operator readings.</strong> Counts and device
-              status appear where reported. Check the observation time in
-              printer details.
-            </>
+              <strong>{t("Recent operator readings.")}</strong>{t(" Counts and device status appear where reported. Check the observation time in printer details.")}</>
           ) : (
             <>
-              <strong>
-                Live queue counts and device status are unavailable.
-              </strong>{' '}
-              Listed hours describe scheduled access. Choose Simulated students
-              to explore campus demand.
-            </>
+              <strong>{t("Live queue counts and device status are unavailable.")}</strong>{' '}{t("Listed hours describe scheduled access. Choose Simulated students to explore campus demand.")}</>
           )}
         </span>
       </p>

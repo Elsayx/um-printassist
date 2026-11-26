@@ -1,3 +1,4 @@
+import { t, countLabel } from '../i18n'
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { Users } from 'lucide-react'
 import { parseStudentTotal } from './browse'
@@ -39,17 +40,12 @@ export default function StudentScenario({
       className="pb-student-scenario"
       noValidate
       onSubmit={apply}
-      aria-label="Campus usage simulation"
+      aria-label={t("Campus usage simulation")}
     >
       <div className="pb-scenario-copy">
         <label htmlFor={id}>
-          <Users size={17} aria-hidden="true" />
-          Total simulated students
-        </label>
-        <p id={id + '-hint'}>
-          Enter 0–100 students. Each adds one pending job to a campus printer
-          queue.
-        </p>
+          <Users size={17} aria-hidden="true" />{t("Total simulated students")}</label>
+        <p id={id + '-hint'}>{t("Enter 0–100 students. Each adds one pending job to a campus printer queue.")}</p>
       </div>
       <div className="pb-scenario-actions">
         <input
@@ -63,18 +59,13 @@ export default function StudentScenario({
           aria-invalid={invalid}
           aria-describedby={id + '-hint' + (invalid ? ' ' + id + '-error' : '')}
         />
-        <button type="submit">Apply total</button>
+        <button type="submit">{t("Apply total")}</button>
       </div>
       {invalid && (
-        <p id={id + '-error'} role="alert" className="pb-scenario-message">
-          Enter a whole number from 0 to 100.
-        </p>
+        <p id={id + '-error'} role="alert" className="pb-scenario-message">{t("Enter a whole number from 0 to 100.")}</p>
       )}
       {value !== total && (
-        <p className="pb-scenario-current">
-          Showing {total} {total === 1 ? 'student' : 'students'} until you apply
-          the new total.
-        </p>
+        <p className="pb-scenario-current">{t('Showing {students} until you apply the new total.', { students: countLabel(total, 'student') })}</p>
       )}
     </form>
   )

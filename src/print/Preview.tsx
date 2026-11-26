@@ -1,3 +1,4 @@
+import { t, countLabel, getLanguage } from '../i18n'
 import { useEffect, useState, type CSSProperties } from 'react'
 import {
   ChevronLeft,
@@ -25,11 +26,9 @@ interface Props {
   onCurrentPage: (page: number) => void
 }
 
-const dimension = new Intl.NumberFormat('en', { maximumFractionDigits: 1 })
 const formatDimensions = (w: number, h: number) =>
-  `${dimension.format(w)} × ${dimension.format(h)} mm`
-const plural = (count: number, noun: string) =>
-  `${count} ${noun}${count === 1 ? '' : 's'}`
+  `${new Intl.NumberFormat(getLanguage(), { maximumFractionDigits: 1 }).format(w)} × ${new Intl.NumberFormat(getLanguage(), { maximumFractionDigits: 1 }).format(h)} mm`
+const plural = countLabel
 
 export default function Preview({
   doc,
@@ -101,29 +100,23 @@ export default function Preview({
     .join(', ')
 
   return (
-    <section className="pv-card" aria-label="Print preview">
+    <section className="pv-card" aria-label={t("Print preview")}>
       <div className="pv-heading">
         <h2>
-          <ScanLine aria-hidden="true" size={20} strokeWidth={1.8} />
-          Print preview
-        </h2>
-        <div className="pv-tabs" role="group" aria-label="Preview mode">
+          <ScanLine aria-hidden="true" size={20} strokeWidth={1.8} />{t("Print preview")}</h2>
+        <div className="pv-tabs" role="group" aria-label={t("Preview mode")}>
           <button
             type="button"
             aria-pressed={sheetMode}
             onClick={() => setMode('sheet')}
           >
-            <Layers size={15} aria-hidden="true" />
-            Physical sheet
-          </button>
+            <Layers size={15} aria-hidden="true" />{t("Physical sheet")}</button>
           <button
             type="button"
             aria-pressed={!sheetMode}
             onClick={() => setMode('original')}
           >
-            <FileText size={15} aria-hidden="true" />
-            Original
-          </button>
+            <FileText size={15} aria-hidden="true" />{t("Original")}</button>
         </div>
       </div>
       <div className="pv-workbench">
@@ -131,17 +124,17 @@ export default function Preview({
           <span>
             {sheetMode
               ? settings.paper === 'Letter'
-                ? 'US Letter'
+                ? t('US Letter')
                 : settings.paper
-              : 'Source'}
+              : t('Source')}
           </span>
           {width && height ? formatDimensions(width, height) : null}
         </div>
         {sheetMode && layout.error ? (
           <div className="pv-error" role="status">
             <Info size={22} aria-hidden="true" />
-            <strong>Preview paused</strong>
-            <p>{layout.error}</p>
+            <strong>{t("Preview paused")}</strong>
+            <p>{t(layout.error)}</p>
           </div>
         ) : (
           original && (
@@ -180,7 +173,7 @@ export default function Preview({
                           data-source-page={page}
                         >
                           <img
-                            alt={`Document page ${page}`}
+                            alt={t(`Document page ${page}`)}
                             src={p.thumbnail}
                             className={
                               settings.color === 'grayscale' ? 'pv-gray' : ''
@@ -197,11 +190,11 @@ export default function Preview({
                       )
                     })}
                   </div>
-                  {emptySide && <span className="pv-blank">Blank back</span>}
+                  {emptySide && <span className="pv-blank">{t("Blank back")}</span>}
                   {edge && (
                     <span
                       className={'pv-binding pv-binding-' + edge}
-                      title={`Binding edge on this view: ${edge}`}
+                      title={t(`Binding edge on this view: ${edge}`)}
                     />
                   )}
                 </>
@@ -209,7 +202,7 @@ export default function Preview({
                 <img
                   className="pv-original"
                   src={original.thumbnail}
-                  alt={`Original page ${pageNumber} of ${doc.name}`}
+                  alt={t(`Original page ${pageNumber} of ${doc.name}`)}
                 />
               )}
             </div>
@@ -220,8 +213,8 @@ export default function Preview({
         <div className="pv-navigation">
           <button
             type="button"
-            aria-label={`Previous ${title.toLowerCase()}`}
-            title={`Previous ${title.toLowerCase()}`}
+            aria-label={t(`Previous ${title.toLowerCase()}`)}
+            title={t(`Previous ${title.toLowerCase()}`)}
             disabled={index <= 1 || length === 0}
             onClick={() => prevOrNext(-1)}
           >
@@ -229,17 +222,15 @@ export default function Preview({
           </button>
           <span aria-live="polite" aria-atomic="true">
             {length ? (
-              <>
-                {title} <b>{index}</b> of {length}
-              </>
+              t(title + ' {current} of {total}', { current: index, total: length })
             ) : (
-              'No sheets'
+              t('No sheets')
             )}
           </span>
           <button
             type="button"
-            aria-label={`Next ${title.toLowerCase()}`}
-            title={`Next ${title.toLowerCase()}`}
+            aria-label={t(`Next ${title.toLowerCase()}`)}
+            title={t(`Next ${title.toLowerCase()}`)}
             disabled={index >= length}
             onClick={() => prevOrNext(1)}
           >
@@ -248,26 +239,22 @@ export default function Preview({
         </div>
         {sheetMode &&
           (settings.duplex !== 'simplex' ? (
-            <div className="pv-face" role="group" aria-label="Sheet side">
+            <div className="pv-face" role="group" aria-label={t("Sheet side")}>
               <button
                 type="button"
                 disabled={!sheet}
                 aria-pressed={side === 'front'}
                 onClick={() => setFace('front')}
-              >
-                Front
-              </button>
+              >{t("Front")}</button>
               <button
                 type="button"
                 disabled={!sheet}
                 aria-pressed={side === 'back'}
                 onClick={() => setFace('back')}
-              >
-                Back
-              </button>
+              >{t("Back")}</button>
             </div>
           ) : (
-            <span className="pv-simplex">Front only</span>
+            <span className="pv-simplex">{t("Front only")}</span>
           ))}
       </div>
       {sheetMode && !layout.error ? (
@@ -276,60 +263,41 @@ export default function Preview({
             <strong>{plural(layout.totalSheets, 'physical sheet')}</strong>
             <span>
               {plural(layout.totalPrintedSides, 'printed side')} ·{' '}
-              {settings.copies === 1 ? '1 copy' : `${settings.copies} copies`}
+              {settings.copies === 1 ? t('1 copy') : t(`${settings.copies} copies`)}
             </span>
             {settings.copies > 1 && (
-              <span>{plural(layout.sheetsPerCopy, 'sheet')} per copy</span>
+              <span>{t('{sheets} per copy', { sheets: plural(layout.sheetsPerCopy, 'sheet') })}</span>
             )}
-            <span className="pv-sr">{`Sheet ${safeIndex + 1}, ${side}. ${emptySide ? 'Blank.' : 'Pages ' + numericLabels + '.'}`}</span>
+            <span className="pv-sr">{t('Sheet {sheet}, {side}. {content}', { sheet: safeIndex + 1, side: t(side === 'front' ? 'Front' : 'Back'), content: emptySide ? t('Blank back') : t('Pages {pages}.', { pages: numericLabels }) })}</span>
           </div>
           <div className="pv-legend">
             <p>
               <span className="pv-key" aria-hidden="true">
                 1
-              </span>
-              Numbers label source pages in the preview.
-            </p>
-            {settings.nup > 1 && <p>{orderDescriptions[settings.order]}.</p>}
+              </span>{t("Numbers label source pages in the preview.")}</p>
+            {settings.nup > 1 && <p>{t(orderDescriptions[settings.order])}.</p>}
             {edge && (
               <p>
-                <span className="pv-binding-key" aria-hidden="true" />
-                Flip at the {layout.bindingEdge} edge of the front. Both sides
-                are shown upright.
-              </p>
+                <span className="pv-binding-key" aria-hidden="true" />{t('Flip at the {edge} edge of the front. Both sides are shown upright.', { edge: t(layout.bindingEdge) })}</p>
             )}
-            <p>
-              Dashed line shows a simulated {marginMm} mm margin. Actual printer
-              output may vary.
-            </p>
+            <p>{t('Dashed line shows a simulated {margin} mm margin. Actual printer output may vary.', { margin: marginMm })}</p>
             {settings.color === 'grayscale' && (
-              <p>
-                Grayscale is approximate. Toner and printer settings can change
-                the result.
-              </p>
+              <p>{t("Grayscale is approximate. Toner and printer settings can change the result.")}</p>
             )}
             {imagePpi !== null && (
-              <p>
-                Estimated image resolution at this size: {imagePpi} pixels per
-                inch.
-                {imageWidthMm > original.widthMm + 0.1
-                  ? ' Enlarging the image can soften detail.'
+              <p>{t('Estimated image resolution at this size: {ppi} pixels per inch.', { ppi: imagePpi })}{imageWidthMm > original.widthMm + 0.1
+                  ? t(' Enlarging the image can soften detail.')
                   : ''}
               </p>
             )}
             {mixed && (
-              <p className="pv-caution">
-                Selected pages have different source sizes.
-                {shrinks
-                  ? ' Some pages are reduced to fit.'
-                  : ' All use the same output paper.'}
+              <p className="pv-caution">{t("Selected pages have different source sizes.")}{shrinks
+                  ? t(' Some pages are reduced to fit.')
+                  : t(' All use the same output paper.')}
               </p>
             )}
             {crops && (
-              <p className="pv-caution">
-                Some content extends beyond its printable area at actual size
-                and will be cropped in this layout.
-              </p>
+              <p className="pv-caution">{t("Some content extends beyond its printable area at actual size and will be cropped in this layout.")}</p>
             )}
           </div>
         </>
@@ -337,7 +305,7 @@ export default function Preview({
         !sheetMode && (
           <div className="pv-source-meta">
             <strong>{doc.name}</strong>
-            <span>Original document · {plural(doc.pages.length, 'page')}</span>
+            <span>{t("Original document · ")}{plural(doc.pages.length, 'page')}</span>
           </div>
         )
       )}

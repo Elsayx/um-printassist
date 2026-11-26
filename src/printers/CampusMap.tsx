@@ -1,3 +1,4 @@
+import { t, countLabel } from '../i18n'
 import {
   useEffect,
   useId,
@@ -350,11 +351,11 @@ export default function CampusMap({
     <section className="cm-map" aria-labelledby={titleId}>
       <header className="cm-header">
         <div>
-          <h2 id={titleId}>Campus heatmap</h2>
+          <h2 id={titleId}>{t("Campus heatmap")}</h2>
           <p>
             {simulated
-              ? 'Simulated students at matching printers, by building'
-              : 'Matching printer listings by building'}
+              ? t('Simulated students at matching printers, by building')
+              : t('Matching printer listings by building')}
           </p>
         </div>
         <button
@@ -363,16 +364,14 @@ export default function CampusMap({
           aria-pressed={heat}
           onClick={() => setHeat((value) => !value)}
         >
-          <Layers3 size={16} aria-hidden="true" />
-          Heat layer
-        </button>
+          <Layers3 size={16} aria-hidden="true" />{t("Heat layer")}</button>
       </header>
       <div
         className={'cm-stage' + (zoom ? ' cm-zoomed' : '')}
         ref={surface}
         tabIndex={0}
         role="group"
-        aria-label="Campus map. Use arrow keys to pan, plus or minus to zoom, and Home to reset."
+        aria-label={t("Campus map. Use arrow keys to pan, plus or minus to zoom, and Home to reset.")}
         onKeyDown={move}
         onPointerDown={startDrag}
         onPointerMove={pan}
@@ -419,7 +418,7 @@ export default function CampusMap({
                 textAnchor="middle"
                 transform={`rotate(${p.rotation} ${xy.x} ${xy.y})`}
               >
-                {p.name}
+                {t(p.name)}
               </text>
             )
           })}
@@ -440,9 +439,9 @@ export default function CampusMap({
             className="cm-marker"
             aria-pressed={m.group.building === selected}
             style={{ left: m.x, top: m.y, width: m.width }}
-            title={m.group.buildingName}
+            title={t(m.group.buildingName)}
             onClick={() => onSelect(m.group.building)}
-            aria-label={`${m.group.building}, ${m.group.buildingName}, ${m.value} ${markerUnit}${m.value === 1 ? '' : 's'}`}
+            aria-label={`${m.group.building}, ${t(m.group.buildingName)}, ${countLabel(m.value, markerUnit)}`}
           >
             <span className="cm-pin">
               <strong>{m.group.building}</strong>
@@ -450,17 +449,15 @@ export default function CampusMap({
             </span>
           </button>
         ))}
-        <div className="cm-north" aria-label="North is up">
+        <div className="cm-north" aria-label={t("North is up")}>
           <svg width="10" height="16" viewBox="0 0 10 16" aria-hidden="true">
             <path d="M5 1 9 15 5 11 1 15Z" />
-          </svg>
-          N
-        </div>
-        <div className="cm-tools" role="group" aria-label="Map controls">
+          </svg>{t("N")}</div>
+        <div className="cm-tools" role="group" aria-label={t("Map controls")}>
           <button
             type="button"
-            aria-label="Zoom in"
-            title="Zoom in"
+            aria-label={t("Zoom in")}
+            title={t("Zoom in")}
             disabled={zoom === ZOOM_STEPS.length - 1}
             onClick={() =>
               setZoom((z) => Math.min(z + 1, ZOOM_STEPS.length - 1))
@@ -470,8 +467,8 @@ export default function CampusMap({
           </button>
           <button
             type="button"
-            aria-label="Zoom out"
-            title="Zoom out"
+            aria-label={t("Zoom out")}
+            title={t("Zoom out")}
             disabled={zoom === 0}
             onClick={() => setZoom((z) => Math.max(z - 1, 0))}
           >
@@ -479,8 +476,8 @@ export default function CampusMap({
           </button>
           <button
             type="button"
-            aria-label="Reset map view"
-            title="Reset map view"
+            aria-label={t("Reset map view")}
+            title={t("Reset map view")}
             onClick={reset}
           >
             <Maximize size={16} />
@@ -488,24 +485,21 @@ export default function CampusMap({
         </div>
         <div className="cm-scale" aria-hidden="true">
           <span style={{ width: scaleMetres * scale }} />
-          {scaleMetres} m
-        </div>
+          {scaleMetres}{t(" m")}</div>
         <a
           className="cm-attribution"
           href="https://www.openstreetmap.org/copyright"
           target="_blank"
           rel="noreferrer"
-        >
-          © OpenStreetMap contributors
-        </a>
+        >{t("© OpenStreetMap contributors")}</a>
       </div>
       <div className="cm-key">
-        <strong>{simulated ? 'Student density' : 'Listing density'}</strong>
+        <strong>{simulated ? t('Student density') : t('Listing density')}</strong>
         {simulated && <span>1</span>}
         <span className="cm-ramp" aria-hidden="true" />
-        <span>{simulated ? '100 students' : 'Low to high'}</span>
-        {simulated && <span>0 = no heat</span>}
-        {!heat && <small>Layer hidden</small>}
+        <span>{simulated ? t('100 students') : t('Low to high')}</span>
+        {simulated && <span>{t("0 = no heat")}</span>}
+        {!heat && <small>{t("Layer hidden")}</small>}
       </div>
     </section>
   )

@@ -1,3 +1,6 @@
+import { t, countLabel, languages, setLanguage, type Language } from './i18n'
+import { useLanguage } from './i18n/useLanguage'
+import HelpGuide from './HelpGuide'
 import {
   useEffect,
   useMemo,
@@ -29,6 +32,7 @@ import {
   RotateCcw,
   ShieldCheck,
   Upload,
+  Languages,
 } from 'lucide-react'
 import SettingsPanel, {
   duplexLabels,
@@ -92,6 +96,7 @@ function currentView() {
 }
 
 export default function App() {
+  const language = useLanguage()
   const [route, setRoute] = useState(currentView)
   const [browseFilters, setBrowseFilters] = useState({ ...initialFilters })
   const [studentTotal, setStudentTotal] = useState(0)
@@ -181,13 +186,14 @@ export default function App() {
     }
   }, [route.tab])
   useEffect(() => {
+    document.documentElement.lang = language
     document.title =
-      (route.tab === 'jobs'
+      t(route.tab === 'jobs'
         ? 'Print jobs'
         : route.tab === 'printers'
           ? 'Find a printer'
           : 'Print workspace') + ' · PrintAssist'
-  }, [route.tab])
+  }, [route.tab, language])
   const layout = useMemo(
     () =>
       computeLayout(
@@ -295,56 +301,54 @@ export default function App() {
           e.preventDefault()
           mainRef.current?.focus()
         }}
-      >
-        Skip to content
-      </a>
+      >{t("Skip to content")}</a>
       <header className="pa-top">
         <div className="pa-top-inner">
           <a
             className="pa-brand"
             href="#workspace"
-            aria-label="PrintAssist workspace"
+            aria-label={t("PrintAssist workspace")}
           >
             <span className="pa-brand-icon">
               <Printer size={23} strokeWidth={2.1} />
-            </span>
-            Print<span>Assist</span>
+            </span>{t("Print")}<span>{t("Assist")}</span>
+            <span className="pa-brand-campus">{t("UM")}</span>
           </a>
-          <nav aria-label="Main navigation" className="pa-nav">
+          <nav aria-label={t("Main navigation")} className="pa-nav">
             <a
               href="#workspace"
               aria-current={route.tab === 'workspace' ? 'page' : undefined}
             >
-              <PanelsTopLeft size={16} />
-              Workspace
-            </a>
+              <PanelsTopLeft size={16} />{t("Workspace")}</a>
             <a
               href="#jobs"
               aria-current={route.tab === 'jobs' ? 'page' : undefined}
             >
-              <ListOrdered size={17} />
-              Print jobs
-            </a>
+              <ListOrdered size={17} />{t("Print jobs")}</a>
             <a
               href="#printers"
               aria-current={route.tab === 'printers' ? 'page' : undefined}
             >
-              <MapPin size={17} />
-              Find printers
-            </a>
+              <MapPin size={17} />{t("Find printers")}</a>
           </nav>
           <div className="pa-top-tools">
+            <label className="pa-language">
+              <Languages size={17} aria-hidden="true" />
+              <span className="pa-sr">Language / 語言 / Idioma</span>
+              <select value={language} onChange={event => setLanguage(event.target.value as Language)}>
+                {languages.map(item => <option key={item.value} value={item.value} lang={item.value}>{item.label}</option>)}
+              </select>
+            </label>
             <span className="pa-sim">
-              <FlaskConical size={14} />
-              Print simulator
-            </span>
+              <FlaskConical size={14} />{t("Print simulator")}</span>
             <button
               className="pa-icon-button"
-              aria-label="Help"
-              title="Help"
+              aria-label={t("Help")}
+              title={t("Help")}
               onClick={(e) => openDialog('help', e)}
             >
               <CircleHelp size={21} />
+              <span>{t("Help")}</span>
             </button>
           </div>
         </div>
@@ -354,21 +358,17 @@ export default function App() {
           <>
             <section className="pa-hero">
               <div className="pa-hero-copy">
-                <h1>Print workspace</h1>
-                <p>
-                  Choose your settings and check each sheet before you submit.
-                </p>
+                <p className="pa-eyebrow">{t("Campus printing")}</p>
+                <h1>{t("Print workspace")}</h1>
+                <p>{t("Choose your print settings and check each sheet before submitting.")}</p>
               </div>
-              <div className="pa-hero-art" aria-hidden="true">
-                <span className="pa-register r1" />
-                <span className="pa-register r2" />
-                <img
-                  src={import.meta.env.BASE_URL + 'printer-studio.png'}
-                  alt=""
-                />
-              </div>
+              <ol className="pa-workflow" aria-label={t("Print workflow")}>
+                <li><span aria-hidden="true">1</span>{t("Choose a document")}</li>
+                <li><span aria-hidden="true">2</span>{t("Adjust & preview")}</li>
+                <li><span aria-hidden="true">3</span>{t("Review & submit")}</li>
+              </ol>
             </section>
-            <section className="pa-filebar" aria-label="Selected document">
+            <section className="pa-filebar" aria-label={t("Selected document")}>
               <span className="pa-file-icon">
                 {doc?.kind === 'image' ? (
                   <FileImage size={24} />
@@ -377,9 +377,10 @@ export default function App() {
                 )}
               </span>
               <div className="pa-file-label">
+                <span className="pa-document-label">{t("Selected document")}</span>
                 <h2>
                   {loading
-                    ? 'Opening document…'
+                    ? t('Opening document…')
                     : doc?.name || 'Choose a document'}
                 </h2>
                 <p>
@@ -387,26 +388,23 @@ export default function App() {
                     <span role="status">{loading}</span>
                   ) : doc ? (
                     <>
-                      {doc.kind === 'pdf' ? 'PDF document' : 'Image'}
-                      <i /> {doc.pages.length}{' '}
-                      {doc.pages.length === 1 ? 'source page' : 'source pages'}
+                      {doc.kind === 'pdf' ? t('PDF document') : t('Image')}
+                      <i /> {countLabel(doc.pages.length, 'source page')}
                     </>
                   ) : (
-                    'PDF, JPG or PNG'
+                    t('PDF, JPG or PNG')
                   )}
                 </p>
               </div>
               <button className="pa-secondary" onClick={showFiles}>
                 <FolderOpen size={17} />
-                <span>Change file</span>
+                <span>{t("Change file")}</span>
               </button>
             </section>
             {error && dialog !== 'files' && (
               <div role="alert" className="pa-alert">
-                {error}
-                <button className="pa-small-link" onClick={showFiles}>
-                  Choose a file
-                </button>
+                {t(error)}
+                <button className="pa-small-link" onClick={showFiles}>{t("Choose a file")}</button>
               </div>
             )}
             {doc && !loading ? (
@@ -414,20 +412,16 @@ export default function App() {
                 <div
                   className="pa-mobile-switch"
                   role="group"
-                  aria-label="Workspace view"
+                  aria-label={t("Workspace view")}
                 >
                   <button
                     aria-pressed={mobilePanel === 'settings'}
                     onClick={() => setMobilePanel('settings')}
-                  >
-                    Print settings
-                  </button>
+                  >{t("Print settings")}</button>
                   <button
                     aria-pressed={mobilePanel === 'preview'}
                     onClick={() => setMobilePanel('preview')}
-                  >
-                    Print preview
-                  </button>
+                  >{t("Print preview")}</button>
                 </div>
                 <SettingsPanel
                   key={loadCount}
@@ -439,6 +433,26 @@ export default function App() {
                   setCopiesError={setCopiesError}
                 />
                 <div className="pa-right">
+                  <div className="pa-total">
+                    <div>
+                      <span className="pa-small-label">{t("Estimated output")}</span>
+                      <strong>{invalid ? t('Check settings') : t(totalLabel)}</strong>
+                      {!invalid && (
+                        <p>
+                          {t('{sides} per copy · {copies}', { sides: countLabel(layout.printedSides, 'printed side'), copies: countLabel(settings.copies, 'copy') })}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      className="pa-primary"
+                      disabled={invalid}
+                      onClick={review}
+                    >{t("Review job")}<ArrowRight size={17} />
+                    </button>
+                  </div>
+                  {invalid && (
+                    <p className="pa-review-hint" role="status">{t("Correct the highlighted settings to review this job.")}</p>
+                  )}
                   <Preview
                     key={loadCount}
                     doc={doc}
@@ -449,52 +463,24 @@ export default function App() {
                   {warnings.map((w) => (
                     <div className="pa-soft-note" key={w}>
                       <Info size={16} />
-                      <span>{w}</span>
+                      <span>{t(w)}</span>
                     </div>
                   ))}
-                  <div className="pa-total">
-                    <div>
-                      <span className="pa-small-label">Estimated output</span>
-                      <strong>{invalid ? 'Check settings' : totalLabel}</strong>
-                      {!invalid && (
-                        <p>
-                          {layout.printedSides} printed{' '}
-                          {layout.printedSides === 1 ? 'side' : 'sides'} per
-                          copy · {settings.copies}{' '}
-                          {settings.copies === 1 ? 'copy' : 'copies'}
-                        </p>
-                      )}
-                    </div>
-                    <button
-                      className="pa-primary"
-                      disabled={invalid}
-                      onClick={review}
-                    >
-                      Review job
-                      <ArrowRight size={17} />
-                    </button>
-                  </div>
                   <p className="pa-no-printer">
-                    <ShieldCheck size={15} />
-                    Simulated print job. No file is sent to a printer.
-                  </p>
+                    <ShieldCheck size={15} />{t("Simulated print job. No file is sent to a printer.")}</p>
                 </div>
               </div>
             ) : (
               loading && (
                 <div className="pa-wait" role="status">
-                  <LoaderCircle className="pa-spin" />
-                  Preparing the preview…
-                </div>
+                  <LoaderCircle className="pa-spin" />{t("Preparing the preview…")}</div>
               )
             )}
           </>
         ) : route.tab === 'printers' ? (
           <Suspense
             fallback={
-              <div role="status" className="pa-wait">
-                Opening campus map…
-              </div>
+              <div role="status" className="pa-wait">{t("Opening campus map…")}</div>
             }
           >
             <PrinterBrowser
@@ -519,15 +505,13 @@ export default function App() {
       </main>
       <footer className="pa-footer">
         <span>
-          <Printer size={14} />
-          UM PrintAssist · Course prototype
-        </span>
-        <button onClick={(e) => openDialog('study', e)}>Study controls</button>
+          <Printer size={14} />{t("UM PrintAssist · Course prototype")}</span>
+        <button onClick={(e) => openDialog('study', e)}>{t("Study controls")}</button>
       </footer>
       {route.tab === 'workspace' && doc && !loading && (
         <div className="pa-mobile-review">
           <div>
-            <span>{invalid ? 'Check settings' : totalLabel}</span>
+            <span>{invalid ? t('Check settings') : t(totalLabel)}</span>
             <button
               className="pa-mobile-jump"
               onClick={() => {
@@ -541,26 +525,22 @@ export default function App() {
                 )
               }}
             >
-              {mobilePanel === 'settings' ? 'See preview' : 'Edit settings'}
+              {mobilePanel === 'settings' ? t('See preview') : t('Edit settings')}
             </button>
           </div>
-          <button onClick={review} disabled={invalid} className="pa-primary">
-            Review job
-            <ArrowRight size={16} />
+          <button onClick={review} disabled={invalid} className="pa-primary">{t("Review job")}<ArrowRight size={16} />
           </button>
         </div>
       )}
       {dialog === 'files' && (
-        <Dialog title="Choose a document" close={close}>
+        <Dialog title={t("Choose a document")} close={close}>
           <div className="pa-dialog-body">
-            <p className="pa-intro">
-              Open a file from your device or choose a sample.
-            </p>
+            <p className="pa-intro">{t("Open a file from your device or choose a sample.")}</p>
             <input
               hidden
               type="file"
               ref={fileRef}
-              aria-label="Select a local file"
+              aria-label={t("Select a local file")}
               onChange={(e) => {
                 const f = e.target.files?.[0]
                 if (f) void openDocument(f)
@@ -573,17 +553,17 @@ export default function App() {
             >
               <Upload size={20} />
               <span>
-                <strong>Browse device</strong>
-                <small>PDF, JPG or PNG · up to 20 MB</small>
+                <strong>{t("Browse device")}</strong>
+                <small>{t("PDF, JPG or PNG · up to 20 MB")}</small>
               </span>
               <ChevronRight size={17} />
             </button>
             {error && (
               <p className="pa-alert" role="alert">
-                {error}
+                {t(error)}
               </p>
             )}
-            <h3>Sample documents</h3>
+            <h3>{t("Sample documents")}</h3>
             <div className="pa-samples">
               {samples.map((f) => (
                 <button key={f.name} onClick={() => void openDocument(f.name)}>
@@ -595,8 +575,8 @@ export default function App() {
                     )}
                   </span>
                   <span>
-                    <strong>{f.title}</strong>
-                    <small>{f.details}</small>
+                    <strong>{t(f.title)}</strong>
+                    <small>{t(f.details)}</small>
                   </span>
                   <ChevronRight size={16} />
                 </button>
@@ -604,19 +584,16 @@ export default function App() {
             </div>
             {loading && (
               <p className="pa-soft-note" role="status">
-                <LoaderCircle size={16} className="pa-spin" />
-                Opening {loading}…
+                <LoaderCircle size={16} className="pa-spin" />{t("Opening ")}{loading}…
               </p>
             )}
             <p className="pa-muted-note">
-              <ShieldCheck size={15} />
-              Your document stays in this browser.
-            </p>
+              <ShieldCheck size={15} />{t("Your document stays in this browser.")}</p>
           </div>
         </Dialog>
       )}
       {dialog === 'review' && doc && (
-        <Dialog title="Review print job" close={close}>
+        <Dialog title={t("Review print job")} close={close}>
           <div className="pa-dialog-body">
             <div className="pa-review-file">
               <FileText size={21} />
@@ -625,125 +602,87 @@ export default function App() {
             <div className="pa-review-count">
               <Layers size={22} />
               <div>
-                <b>{totalLabel}</b>
+                <b>{t(totalLabel)}</b>
                 <small>
-                  {layout.sheetsPerCopy}{' '}
-                  {layout.sheetsPerCopy === 1 ? 'sheet' : 'sheets'} and{' '}
-                  {layout.printedSides} printed{' '}
-                  {layout.printedSides === 1 ? 'side' : 'sides'} per copy
-                </small>
+                  {t('{sheets} and {sides} per copy', { sheets: countLabel(layout.sheetsPerCopy, 'sheet'), sides: countLabel(layout.printedSides, 'printed side') })}</small>
               </div>
             </div>
             <dl className="pa-review-list">
               {summary.map(([k, v]) => (
                 <div key={k}>
-                  <dt>{k}</dt>
-                  <dd>{v}</dd>
+                  <dt>{t(k)}</dt>
+                  <dd>{t(v)}</dd>
                 </div>
               ))}
             </dl>
             <div className="pa-warning">
               <Info size={18} />
               <div>
-                <b>What is still unverified?</b>
-                <p>
-                  The preview uses a simulated 6 mm margin. Actual printer
-                  margins, duplex alignment, color and cost are unverified.
-                </p>
+                <b>{t("What is still unverified?")}</b>
+                <p>{t("The preview uses a simulated 6 mm margin. Actual printer margins, duplex alignment, color and cost are unverified.")}</p>
                 {settings.scale === 'actual' && (
-                  <p>Actual size can crop content outside its cell.</p>
+                  <p>{t("Actual size can crop content outside its cell.")}</p>
                 )}
                 {warnings.map((w) => (
-                  <p key={w}>{w}</p>
+                  <p key={w}>{t(w)}</p>
                 ))}
               </div>
             </div>
             <div className="pa-dialog-actions">
-              <button className="pa-secondary" onClick={close}>
-                Edit settings
-              </button>
-              <button className="pa-primary" onClick={submit}>
-                Submit simulated job
-                <ArrowRight size={16} />
+              <button className="pa-secondary" onClick={close}>{t("Edit settings")}</button>
+              <button className="pa-primary" onClick={submit}>{t("Submit simulated job")}<ArrowRight size={16} />
               </button>
             </div>
           </div>
         </Dialog>
       )}
       {dialog === 'help' && (
-        <Dialog title="PrintAssist help" close={close}>
+        <Dialog title={t("PrintAssist help")} close={close}>
           <div className="pa-dialog-body pa-help">
+            <HelpGuide />
             <h3>
-              <FileStack size={19} />
-              Check your output
-            </h3>
-            <p>
-              Use Physical sheet to inspect each front and back. The numbers
-              identify source pages. Open Original to inspect a page at its
-              source dimensions.
-            </p>
+              <FileStack size={19} />{t("Check your output")}</h3>
+            <p>{t("Use Physical sheet to inspect each front and back. The numbers identify source pages. Open Original to inspect a page at its source dimensions.")}</p>
             <h3>
-              <ListOrdered size={19} />
-              Find a submitted job
-            </h3>
-            <p>
-              Open Print jobs and match the file name and job ID. If receipt is
-              unconfirmed, check again before making another submission.
-            </p>
+              <ListOrdered size={19} />{t("Find a submitted job")}</h3>
+            <p>{t("Open Print jobs and match the file name and job ID. If receipt is unconfirmed, check again before making another submission.")}</p>
             <h3>
-              <BookOpen size={19} />
-              Printing on campus
-            </h3>
-            <p>
-              UM Follow-You Printing holds jobs for release at a printer. This
-              simulator cannot check that queue or release a job.
-            </p>
+              <BookOpen size={19} />{t("Printing on campus")}</h3>
+            <p>{t("UM Follow-You Printing holds jobs for release at a printer. This simulator cannot check that queue or release a job.")}</p>
             <a
               href="https://icto.um.edu.mo/printing/follow-you-student-printing/"
               target="_blank"
               rel="noreferrer"
-            >
-              ICTO student printing guide <ArrowUpRight size={15} />
+            >{t("ICTO student printing guide ")}<ArrowUpRight size={15} />
             </a>
           </div>
         </Dialog>
       )}
       {dialog === 'study' && (
-        <Dialog title="Study controls" close={close}>
+        <Dialog title={t("Study controls")} close={close}>
           <div className="pa-dialog-body">
-            <p className="pa-intro">
-              Facilitator controls for this browser session.
-            </p>
+            <p className="pa-intro">{t("Facilitator controls for this browser session.")}</p>
             <label className="pa-field">
-              <span>Outcome for new simulated jobs</span>
+              <span>{t("Outcome for new simulated jobs")}</span>
               <select
                 value={outcome}
                 onChange={(e) => setOutcome(e.target.value as Outcome)}
               >
-                <option value="confirmed">
-                  Confirmed received (standard task)
-                </option>
-                <option value="unconfirmed">Unconfirmed</option>
-                <option value="pending">Pending</option>
-                <option value="failed">Known failure</option>
+                <option value="confirmed">{t("Confirmed received (standard task)")}</option>
+                <option value="unconfirmed">{t("Unconfirmed")}</option>
+                <option value="pending">{t("Pending")}</option>
+                <option value="failed">{t("Known failure")}</option>
               </select>
             </label>
             <div className="pa-study-reset">
-              <h3>Reset for a participant</h3>
-              <p>
-                Clears this session’s jobs and settings and restores the handout
-                and the interrupted lecture-notes job.
-              </p>
+              <h3>{t("Reset for a participant")}</h3>
+              <p>{t("Clears this session’s jobs and settings and restores the handout and the interrupted lecture-notes job.")}</p>
               <button className="pa-secondary" onClick={reset}>
-                <RotateCcw size={16} />
-                Reset scenario
-              </button>
+                <RotateCcw size={16} />{t("Reset scenario")}</button>
             </div>
             <div className="pa-dialog-actions">
               <button className="pa-primary" onClick={close}>
-                <Check size={16} />
-                Done
-              </button>
+                <Check size={16} />{t("Done")}</button>
             </div>
           </div>
         </Dialog>

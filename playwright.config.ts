@@ -8,7 +8,7 @@ export default defineConfig({
   testDir: './e2e',
   timeout: 45000,
   fullyParallel: true,
-  workers: 3,
+  workers: 1,
   use: {
     baseURL,
     browserName,

@@ -4,7 +4,26 @@
 
 A mobile-first campus printing simulator for CISC2007 Group B. Students can lay out a real document, inspect both faces of each physical sheet and check whether a simulated service received their job. No campus login, printer, payment or server-side file upload is involved.
 
+Project contributor: **Sou Chak Tong** · Student ID: **UC326523**.
+
 ![The print workspace with an A4 handout arranged four pages per printed side](docs/workspace.png)
+
+The UI uses a compact workspace, system fonts and a shared visual system across
+printing, jobs and the campus directory. See the [UI/UX review](docs/ui-ux-review.md)
+for the lecture references, 5Es and Nielsen mapping, feature-preservation checklist
+and validation results. [Mobile workspace](docs/workspace-mobile.png) ·
+[Print jobs](docs/print-jobs.png) · [Printer directory](docs/printer-directory.png).
+
+Use the language selector in the header to choose **English**, **繁體中文**
+(Traditional Chinese) or **Português** (European Portuguese). The choice is saved
+locally. Switching languages keeps the open document, print settings, jobs and
+current view. Interface text, validation, help, job recovery and printer details
+are translated; filenames, job IDs, building/room codes and document contents
+retain their original values. Printer search also accepts translated place names.
+
+Open **Help** for a four-step printing diagram and an example showing how eight
+source pages fit on the front and back of one physical sheet. The diagrams use
+HTML and CSS and require no extra graphics or animation library.
 
 ## Run the prototype
 
@@ -73,6 +92,16 @@ npm run test:browser
 ```
 
 To run the same browser suite with WebKit or Firefox, install that browser via Playwright and set `PLAYWRIGHT_BROWSER` to `webkit` or `firefox`. Set `PLAYWRIGHT_BASE_URL` to test an already-running production server, for example `http://127.0.0.1:8080`. Tests cover sheet arithmetic and placement, binding, document validation, the two task flows, safe recovery, and automated accessibility checks.
+
+Browser tests use **one worker** by default to reduce memory use. On Windows,
+reuse installed Chrome without downloading another browser:
+
+```powershell
+$env:PLAYWRIGHT_EXECUTABLE_PATH = 'C:\Program Files\Google\Chrome\Application\chrome.exe'
+npm run test:browser
+```
+
+Check the translation catalogue with `node scripts/check-translations.mjs`.
 
 The original synthetic samples are in `public/samples/`. Core modules live in `src/print/` (layout and preview), `src/files/` (local rendering) and `src/jobs/` (state and recovery). No external printing service is contacted. The campus help link points to the [official ICTO Follow-You Student Printing guide](https://icto.um.edu.mo/printing/follow-you-student-printing/).
 

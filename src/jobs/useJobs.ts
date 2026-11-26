@@ -40,13 +40,18 @@ export function useJobs() {
 
   useEffect(() => {
     const due = jobs.reduce(
-      (next, job) => (job.reply ? Math.min(next, job.reply.due) : next),
+      (next, job) =>
+        job.state === 'submitting' && job.reply
+          ? Math.min(next, job.reply.due)
+          : next,
       Infinity,
     )
     if (!Number.isFinite(due)) return
     const timer = window.setTimeout(
       () => update(resolveJobs(current.current, Date.now())),
-      Math.max(0, due - Date.now()),
+      // A clock change or older saved timestamp must not overflow setTimeout
+      // into a 1 ms retry loop. Normal simulator replies still take 850 ms.
+      Math.min(2_147_483_647, Math.max(0, due - Date.now())),
     )
     return () => window.clearTimeout(timer)
   }, [jobs, update])

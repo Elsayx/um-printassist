@@ -1,3 +1,4 @@
+import { t, countLabel, translateSummary, formatTime } from '../i18n'
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import {
   ArrowLeft,
@@ -52,22 +53,10 @@ const status = {
   },
 } satisfies Record<JobState, object>
 
-const dateTime = new Intl.DateTimeFormat(undefined, {
-  month: 'short',
-  day: 'numeric',
-  hour: 'numeric',
-  minute: '2-digit',
-})
-const clockTime = new Intl.DateTimeFormat(undefined, {
-  hour: 'numeric',
-  minute: '2-digit',
-  second: '2-digit',
-})
-
 function Time({ value, short = false }: { value: number; short?: boolean }) {
   return (
     <time dateTime={new Date(value).toISOString()}>
-      {(short ? clockTime : dateTime).format(value)}
+      {formatTime(value, short)}
     </time>
   )
 }
@@ -77,7 +66,7 @@ function StateLabel({ state }: { state: JobState }) {
   return (
     <span className={'job-chip job-tone-' + state}>
       <Icon size={15} aria-hidden="true" />
-      {label}
+      {t(label)}
     </span>
   )
 }
@@ -103,7 +92,7 @@ function RecoveryHelp({ job }: { job: Job }) {
         className="job-help-toggle"
       >
         <HelpCircle size={18} aria-hidden="true" />
-        <span>What should I do next?</span>
+        <span>{t("What should I do next?")}</span>
         <ChevronDown
           size={17}
           aria-hidden="true"
@@ -112,21 +101,15 @@ function RecoveryHelp({ job }: { job: Job }) {
       </button>
       {open && (
         <div id="job-recovery-help" className="job-help-body">
-          <p>
-            For a real campus job, check your printing queue for{' '}
-            <strong>{job.name}</strong>. If you still can’t identify it, ask the
-            ICTO Help Desk before sending another copy.
-          </p>
+          <p>{t("For a real campus job, check your printing queue for")}{' '}
+            <strong>{job.name}</strong>{t(". If you still can’t identify it, ask the ICTO Help Desk before sending another copy.")}</p>
           <a
             href="https://icto.um.edu.mo/printing/follow-you-student-printing/"
             target="_blank"
             rel="noreferrer"
-          >
-            ICTO printing guide <ExternalLink size={14} aria-hidden="true" />
+          >{t("ICTO printing guide ")}<ExternalLink size={14} aria-hidden="true" />
             <span className="job-sr">
-              {' '}
-              (opens in a new tab; internet required)
-            </span>
+              {' '}{t("(opens in a new tab; internet required)")}</span>
           </a>
         </div>
       )}
@@ -150,13 +133,9 @@ function JobDetail({
   return (
     <>
       <button type="button" className="job-back" onClick={() => onSelect(null)}>
-        <ArrowLeft size={17} aria-hidden="true" />
-        All print jobs
-      </button>
+        <ArrowLeft size={17} aria-hidden="true" />{t("All print jobs")}</button>
       <div className="job-heading">
-        <h1 ref={heading} tabIndex={-1} id="job-title">
-          Job details
-        </h1>
+        <h1 ref={heading} tabIndex={-1} id="job-title">{t("Job details")}</h1>
       </div>
       <div className="job-detail-grid">
         <article className="job-card">
@@ -173,58 +152,55 @@ function JobDetail({
             <div className={'job-statebox job-tone-' + job.state}>
               <Icon size={22} aria-hidden="true" />
               <div role="status">
-                <h3>{label}</h3>
-                <p>{body}</p>
+                <h3>{t(label)}</h3>
+                <p>{t(body)}</p>
               </div>
             </div>
             <dl className="job-facts">
               <div>
-                <dt>Submission attempt</dt>
+                <dt>{t("Submission attempt")}</dt>
                 <dd>
                   <Time value={job.submittedAt} />
                 </dd>
               </div>
               <div>
-                <dt>Last known event</dt>
+                <dt>{t("Last known event")}</dt>
                 <dd>
-                  {event} · <Time value={job.eventAt} short />
+                  {t(event)} · <Time value={job.eventAt} short />
                 </dd>
               </div>
               <div>
-                <dt>Print settings</dt>
-                <dd>{job.summary}</dd>
+                <dt>{t("Print settings")}</dt>
+                <dd>{translateSummary(job.summary)}</dd>
               </div>
             </dl>
           </div>
         </article>
-        <section className="job-card job-next" aria-label="Next steps">
-          <h2>Next steps</h2>
+        <section className="job-card job-next" aria-label={t("Next steps")}>
+          <h2>{t("Next steps")}</h2>
           {recheckable && (
             <>
               <p>
                 {job.state === 'unconfirmed'
-                  ? 'Check for a receipt before trying again. Resending now could create a duplicate.'
-                  : 'Give the service time to respond. You can check this job again without submitting another copy.'}
+                  ? t('Check for a receipt before trying again. Resending now could create a duplicate.')
+                  : t('Give the service time to respond. You can check this job again without submitting another copy.')}
               </p>
               <button
                 type="button"
                 className="job-primary"
                 onClick={() => onCheck(job.id)}
               >
-                <RefreshCw size={17} aria-hidden="true" />
-                Check again
-              </button>
+                <RefreshCw size={17} aria-hidden="true" />{t("Check again")}</button>
               <p
                 role="status"
                 aria-atomic="true"
                 className="job-check-feedback"
               >
                 {job.checkedAt !== null && (
-                  <>
-                    Check {job.checks} · <Time value={job.checkedAt} short />.{' '}
+                  <>{t("Check ")}{job.checks} · <Time value={job.checkedAt} short />.{' '}
                     {job.state === 'unconfirmed'
-                      ? 'Still unconfirmed. No receipt has arrived.'
-                      : 'Still pending. No release confirmation yet.'}
+                      ? t('Still unconfirmed. No receipt has arrived.')
+                      : t('Still pending. No release confirmation yet.')}
                   </>
                 )}
               </p>
@@ -233,31 +209,20 @@ function JobDetail({
           )}
           {job.state === 'confirmed' && (
             <>
-              <p>
-                In a real Follow-You queue, you would identify the document at a
-                printer and release it there. This simulation ends at receipt
-                and sends nothing to a printer.
-              </p>
+              <p>{t("In a real Follow-You queue, you would identify the document at a printer and release it there. This simulation ends at receipt and sends nothing to a printer.")}</p>
               <button
                 type="button"
                 className="job-primary"
                 onClick={onWorkspace}
-              >
-                Back to workspace
-                <ArrowRight size={17} aria-hidden="true" />
+              >{t("Back to workspace")}<ArrowRight size={17} aria-hidden="true" />
               </button>
               <a className="job-map-link" href="#printers">
-                <MapPin size={16} aria-hidden="true" />
-                Browse campus printers
-              </a>
+                <MapPin size={16} aria-hidden="true" />{t("Browse campus printers")}</a>
             </>
           )}
           {job.state === 'failed' && (
             <>
-              <p>
-                Retry this failed attempt to request a new simulated receipt for
-                the same job ID.
-              </p>
+              <p>{t("Retry this failed attempt to request a new simulated receipt for the same job ID.")}</p>
               <button
                 type="button"
                 className="job-primary"
@@ -266,16 +231,11 @@ function JobDetail({
                   onRetry(job.id)
                 }}
               >
-                <Send size={17} aria-hidden="true" />
-                Retry submission
-              </button>
+                <Send size={17} aria-hidden="true" />{t("Retry submission")}</button>
             </>
           )}
           {job.state === 'submitting' && (
-            <p>
-              The job status will update automatically when the simulated
-              service responds.
-            </p>
+            <p>{t("The job status will update automatically when the simulated service responds.")}</p>
           )}
         </section>
       </div>
@@ -321,31 +281,26 @@ export default function Jobs({
         />
       ) : selected ? (
         <>
-          <h1 ref={heading} tabIndex={-1} id="job-title">
-            Job unavailable
-          </h1>
-          <p>This job is no longer in this session.</p>
+          <h1 ref={heading} tabIndex={-1} id="job-title">{t("Job unavailable")}</h1>
+          <p>{t("This job is no longer in this session.")}</p>
           <button
             className="job-primary"
             type="button"
             onClick={() => onSelect(null)}
-          >
-            All print jobs
-          </button>
+          >{t("All print jobs")}</button>
         </>
       ) : (
         <>
           <div className="job-heading">
-            <h1 ref={heading} tabIndex={-1} id="job-title">
-              Print jobs
-            </h1>
-            <p>Check the status of a simulated submission.</p>
+            <p className="pa-eyebrow">{t("Submission history")}</p>
+            <h1 ref={heading} tabIndex={-1} id="job-title">{t("Print jobs")}</h1>
+            <p>{t("Find your document and check whether the simulated service received it.")}</p>
           </div>
           <div className="job-card job-list">
             <header>
-              <h2>Recent jobs</h2>
+              <h2>{t("Recent jobs")}</h2>
               <span>
-                {jobs.length} {jobs.length === 1 ? 'job' : 'jobs'}
+                {countLabel(jobs.length, 'job')}
               </span>
             </header>
             <ul>
