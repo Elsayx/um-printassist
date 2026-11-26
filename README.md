@@ -1,5 +1,7 @@
 # UM PrintAssist
 
+**[Open the live prototype](https://elsayx.github.io/um-printassist/)** in your browser. No installation or sign-in required.
+
 A mobile-first campus printing simulator for CISC2007 Group B. Students can lay out a real document, inspect both faces of each physical sheet and check whether a simulated service received their job. No campus login, printer, payment or server-side file upload is involved.
 
 ![The print workspace with an A4 handout arranged four pages per printed side](docs/workspace.png)
