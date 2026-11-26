@@ -37,13 +37,13 @@ For a static production build, run `npm run build` and serve the contents of `di
 
 The directory combines the [UM eMap](https://map.um.edu.mo/), [ICTO printer information](https://icto.um.edu.mo/printing/follow-you-student-printing/), [Library facilities](https://library.um.edu.mo/using_the_lib/facilities_en) and individual unit pages. Building access hours and staffed support hours are shown separately. Unpublished details are marked in the directory. The offline basemap uses OpenStreetMap contributors’ data; see [map attribution](public/maps/NOTICE.txt).
 
-The public prototype has no live printer queue or hardware-status feed connected. To exercise the queue filter, choose **Queue data → Simulated counts**. Choose **Exact count…** to filter by any whole number from 0 to 100. To set a simulated queue to a particular value, open the listing and choose **Edit demo count** under **Pending jobs**. Edits stay in the current app session and clear when the page reloads or the study scenario resets. PrintAssist does not send jobs to a real device or infer queue lengths from a student's Follow-You submissions.
+Choose **Queue data → Simulated students**, enter a campus-wide total from **0 to 100**, then select **Apply total**. Each student contributes one pending job, assigned to one printer listing. The model uses documented device counts as weights and assumes one device for a listing of unknown size. It uses a repeatable assignment sequence so that the same total produces the same scenario. The map and list show students per building, and printer details show jobs per listing. Search and location filters change the visible subtotal while the campus-wide allocation stays fixed. Reloading the page or resetting the study scenario returns the total to zero. The public prototype has no live queue feed connected.
 
 ### Optional operator readings
 
 An operator can supply an approved, browser-readable JSON feed via the build-time variable `VITE_PRINTER_STATUS_URL`. Leave it empty for the public simulator. The URL is public and should contain no credentials. Use an HTTPS endpoint for GitHub Pages. Station IDs are listed in `src/printers/directory.ts`. The reader accepts an object with a `readings` array; each item contains a station `id`, a nonnegative integer `pending` or `null`, an `availability` of `available`, `unavailable` or `unknown`, and an ISO timestamp `observedAt` with a timezone. Only recent observations (up to 15 minutes old) are shown. A missing count stays unknown, even when a device reports that it is available.
 
-For a local Docker build, set the variable in `.env` and rebuild. For GitHub Pages, set the repository Actions variable of the same name and rerun the publish workflow. Fresh readings show their observation time and enable queue filtering. The public version ships with the feed unset.
+For a local Docker build, set the variable in `.env` and rebuild. For GitHub Pages, set the repository Actions variable of the same name and rerun the publish workflow. Fresh readings show their observation time in Campus information mode. The public version ships with the feed unset.
 
 ## Try the two study tasks
 

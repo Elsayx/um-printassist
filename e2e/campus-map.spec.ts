@@ -41,3 +41,44 @@ test('map heat follows filters, supports keyboard navigation and works on a narr
   await marker('E2').click()
   await expect(page).toHaveURL(/printers\/E2/i)
 })
+
+test('map badges and heat follow the simulated campus total', async ({ page }) => {
+  await page.goto('./#printers')
+  const map = page.getByRole('region', { name: 'Campus heatmap' })
+  const mode = page.getByRole('combobox', { name: 'Queue data' })
+  await mode.selectOption('demo')
+  const pins = map.locator('.cm-marker')
+  const input = page.getByRole('textbox', { name: 'Total simulated students' })
+  const canvas = map.locator('canvas')
+  const heat = () => canvas.evaluate(el => {
+    const pixels = el.getContext('2d')!.getImageData(0, 0, el.width, el.height).data
+    let opacity = 0
+    for (let i = 3; i < pixels.length; i += 4) opacity += pixels[i]
+    return opacity
+  })
+  const badges = () => map.locator('.cm-pin > span').evaluateAll(
+    els => els.reduce((sum, el) => sum + Number(el.textContent), 0),
+  )
+  await expect(map.getByText('Student density')).toBeVisible()
+  let previousHeat = 0
+  for (const total of [0, 1, 100]) {
+    await input.fill(String(total))
+    await input.press('Enter')
+    await expect.poll(badges).toBe(total)
+    if (total === 0) {
+      await expect(pins.first()).toHaveAccessibleName(/0 simulated students$/)
+      await expect.poll(heat).toBe(0)
+    } else {
+      await expect.poll(heat).toBeGreaterThan(previousHeat)
+      previousHeat = await heat()
+    }
+  }
+  const e6 = map.getByRole('button', { name: /^E6, / })
+  const unfiltered = await e6.getAttribute('aria-label')
+  await page.getByRole('searchbox', { name: 'Search printers' }).fill('E6')
+  await expect(pins).toHaveCount(1)
+  await expect(e6).toHaveAttribute('aria-label', unfiltered!)
+  await mode.selectOption('actual')
+  await expect(e6).toHaveAccessibleName(/matching listings?$/)
+  await expect(map.getByText('Listing density')).toBeVisible()
+})

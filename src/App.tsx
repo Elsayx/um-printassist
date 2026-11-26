@@ -94,9 +94,7 @@ function currentView() {
 export default function App() {
   const [route, setRoute] = useState(currentView)
   const [browseFilters, setBrowseFilters] = useState({ ...initialFilters })
-  const [demoCounts, setDemoCounts] = useState<ReadonlyMap<string, number>>(
-    () => new Map(),
-  )
+  const [studentTotal, setStudentTotal] = useState(0)
   const [dialog, setDialog] = useState<
     'files' | 'review' | 'help' | 'study' | null
   >(null)
@@ -267,7 +265,7 @@ export default function App() {
   }
   function reset() {
     jobStore.reset()
-    setDemoCounts(new Map())
+    setStudentTotal(0)
     setBrowseFilters({ ...initialFilters })
     setOutcome('confirmed')
     setDialog(null)
@@ -500,8 +498,8 @@ export default function App() {
             }
           >
             <PrinterBrowser
-              demoCounts={demoCounts}
-              onDemoCounts={setDemoCounts}
+              studentTotal={studentTotal}
+              onStudentTotal={setStudentTotal}
               filters={browseFilters}
               onFilters={setBrowseFilters}
               selected={route.id}

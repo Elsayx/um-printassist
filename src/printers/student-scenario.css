@@ -1,0 +1,67 @@
+.pb-student-scenario {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  padding: 14px 16px;
+  margin: 14px 0 10px;
+  color: var(--ink);
+  background: #edf4fb;
+  border: 1px solid #cfdfed;
+  border-radius: 11px;
+}
+.pb-scenario-copy {
+  flex: 1 1 250px;
+}
+.pb-scenario-copy label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 15px;
+  font-weight: 650;
+}
+.pb-scenario-copy p,
+.pb-scenario-current,
+.pb-scenario-message {
+  margin: 4px 0 0;
+  color: #415970;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.pb-scenario-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pb-scenario-actions input,
+.pb-scenario-actions button {
+  min-height: 44px;
+  border: 1px solid #b7c6d8;
+  border-radius: 7px;
+  padding: 7px 12px;
+  font-size: 14px;
+  font-family: inherit;
+}
+.pb-scenario-actions input {
+  width: 72px;
+  color: var(--ink);
+  background: white;
+  font-variant-numeric: tabular-nums;
+}
+.pb-scenario-actions input[aria-invalid='true'] {
+  border-color: #963223;
+}
+.pb-scenario-actions button {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: white;
+  font-weight: 600;
+}
+.pb-student-scenario .pb-scenario-message {
+  color: #8b341b;
+}
+.pb-scenario-current,
+.pb-scenario-message {
+  flex-basis: 100%;
+  margin: 0;
+}

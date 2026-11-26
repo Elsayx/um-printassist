@@ -2,7 +2,6 @@ import {
   useEffect,
   useId,
   useLayoutEffect,
-  useMemo,
   useRef,
   useState,
   type KeyboardEvent,
@@ -17,10 +16,12 @@ export interface CampusBuilding {
   lat: number
   lng: number
   count: number
+  students?: number
 }
 
 interface MapProps {
   groups: CampusBuilding[]
+  simulated?: boolean
   selected: string | null
   onSelect: (building: string) => void
 }
@@ -35,6 +36,7 @@ interface Size {
 }
 interface Marker extends Point {
   group: CampusBuilding
+  value: number
   anchor: Point
   width: number
 }
@@ -49,6 +51,10 @@ function project(lat: number, lng: number): Point {
   return { x: (lng - 113.544) * 103150, y: (22.129 - lat) * 110720 }
 }
 
+function mapValue(group: CampusBuilding, simulated: boolean) {
+  return simulated ? (group.students ?? 0) : group.count
+}
+
 // Map anchors stay at their geographic position. Nearby labels may move to
 // either side of the anchor and are joined back to it with a leader line.
 function layoutMarkers(
@@ -56,6 +62,7 @@ function layoutMarkers(
   position: (p: Point) => Point,
   size: Size,
   selected: string | null,
+  simulated: boolean,
 ) {
   const placed: Marker[] = []
   const ordered = [...groups].sort((a, b) => b.lat - a.lat || a.lng - b.lng)
@@ -68,9 +75,10 @@ function layoutMarkers(
       anchor.y > size.height + 5
     )
       continue
+    const value = mapValue(group, simulated)
     const width = Math.max(
       58,
-      26 + (group.building.length + String(group.count).length) * 7.5,
+      26 + (group.building.length + String(value).length) * 7.5,
     )
     const gaps = [
       0,
@@ -101,7 +109,7 @@ function layoutMarkers(
         }
         if (cost < bestCost) {
           bestCost = cost
-          best = { x, y, group, anchor, width }
+          best = { x, y, group, value, anchor, width }
         }
       }
     }
@@ -116,7 +124,11 @@ function layoutMarkers(
 
 // Compute a sum of fixed-radius kernels in physical space. Changing zoom only
 // scales the finished raster; it cannot change a building's density category.
-function drawHeat(canvas: HTMLCanvasElement, groups: CampusBuilding[]) {
+function drawHeat(
+  canvas: HTMLCanvasElement,
+  groups: CampusBuilding[],
+  simulated: boolean,
+) {
   const sampleM = 3.5
   const width = Math.ceil(WORLD_W / sampleM)
   const height = Math.ceil(WORLD_H / sampleM)
@@ -128,6 +140,8 @@ function drawHeat(canvas: HTMLCanvasElement, groups: CampusBuilding[]) {
   const sigma = 50 / sampleM
   const radius = 3 * sigma
   for (const group of groups) {
+    const weight = mapValue(group, simulated)
+    if (weight === 0) continue
     const point = project(group.lat, group.lng)
     const cx = ((point.x - EXTENT.left) / WORLD_W) * width
     const cy = ((point.y - EXTENT.top) / WORLD_H) * height
@@ -144,7 +158,7 @@ function drawHeat(canvas: HTMLCanvasElement, groups: CampusBuilding[]) {
         const d2 = (x - cx) ** 2 + (y - cy) ** 2
         if (d2 <= radius * radius)
           field[y * width + x] +=
-            group.count * Math.exp(-d2 / (2 * sigma * sigma))
+            weight * Math.exp(-d2 / (2 * sigma * sigma))
       }
     }
   }
@@ -156,9 +170,12 @@ function drawHeat(canvas: HTMLCanvasElement, groups: CampusBuilding[]) {
     [245, 146, 62],
     [211, 78, 44],
   ]
+  const maxStudentIntensity = Math.log1p(100)
   for (let i = 0; i < field.length; i++) {
     if (field[i] < 0.012) continue
-    const t = 1 - Math.exp(-field[i] / 2.6)
+    const t = simulated
+      ? Math.min(1, Math.log1p(field[i]) / maxStudentIntensity)
+      : 1 - Math.exp(-field[i] / 2.6)
     const step = t * (colors.length - 1)
     const lo = Math.floor(step)
     const hi = Math.min(colors.length - 1, lo + 1)
@@ -184,7 +201,12 @@ const places = [
   { name: 'Library Street North', lat: 22.13069, lng: 113.54535, rotation: 0 },
 ]
 
-export default function CampusMap({ groups, selected, onSelect }: MapProps) {
+export default function CampusMap({
+  groups,
+  selected,
+  onSelect,
+  simulated = false,
+}: MapProps) {
   const surface = useRef<HTMLDivElement>(null)
   const density = useRef<HTMLCanvasElement>(null)
   const titleId = useId()
@@ -221,7 +243,8 @@ export default function CampusMap({ groups, selected, onSelect }: MapProps) {
     x: (p.x - camera.x) * scale + size.width / 2,
     y: (p.y - camera.y) * scale + size.height / 2,
   })
-  const markers = layoutMarkers(groups, position, size, selected)
+  const markers = layoutMarkers(groups, position, size, selected, simulated)
+  const markerUnit = simulated ? 'simulated student' : 'matching listing'
   const origin = position({ x: EXTENT.left, y: EXTENT.top })
   const world = {
     left: origin.x,
@@ -231,10 +254,6 @@ export default function CampusMap({ groups, selected, onSelect }: MapProps) {
   }
   const selectedPoint = groups.find((g) => g.building === selected)
   const selectedKey = selectedPoint?.building
-  const heatKey = useMemo(
-    () => JSON.stringify(groups.map((g) => [g.lat, g.lng, g.count])),
-    [groups],
-  )
   useLayoutEffect(() => {
     if (!surface.current) return
     const target = surface.current
@@ -249,8 +268,8 @@ export default function CampusMap({ groups, selected, onSelect }: MapProps) {
     return () => observer.disconnect()
   }, [])
   useEffect(() => {
-    if (density.current) drawHeat(density.current, groups)
-  }, [heatKey]) // groups with the same sites and weights have the same raster.
+    if (density.current) drawHeat(density.current, groups, simulated)
+  }, [groups, simulated])
   useEffect(() => {
     if (!selectedPoint) return
     const point = project(selectedPoint.lat, selectedPoint.lng)
@@ -332,7 +351,11 @@ export default function CampusMap({ groups, selected, onSelect }: MapProps) {
       <header className="cm-header">
         <div>
           <h2 id={titleId}>Campus heatmap</h2>
-          <p>Matching printer listings by building</p>
+          <p>
+            {simulated
+              ? 'Simulated students at matching printers, by building'
+              : 'Matching printer listings by building'}
+          </p>
         </div>
         <button
           className="cm-layer"
@@ -419,11 +442,11 @@ export default function CampusMap({ groups, selected, onSelect }: MapProps) {
             style={{ left: m.x, top: m.y, width: m.width }}
             title={m.group.buildingName}
             onClick={() => onSelect(m.group.building)}
-            aria-label={`${m.group.building}, ${m.group.buildingName}, ${m.group.count} matching ${m.group.count === 1 ? 'listing' : 'listings'}`}
+            aria-label={`${m.group.building}, ${m.group.buildingName}, ${m.value} ${markerUnit}${m.value === 1 ? '' : 's'}`}
           >
             <span className="cm-pin">
               <strong>{m.group.building}</strong>
-              <span>{m.group.count}</span>
+              <span>{m.value}</span>
             </span>
           </button>
         ))}
@@ -477,9 +500,11 @@ export default function CampusMap({ groups, selected, onSelect }: MapProps) {
         </a>
       </div>
       <div className="cm-key">
-        <strong>Listing density</strong>
+        <strong>{simulated ? 'Student density' : 'Listing density'}</strong>
+        {simulated && <span>1</span>}
         <span className="cm-ramp" aria-hidden="true" />
-        <span>Low to high</span>
+        <span>{simulated ? '100 students' : 'Low to high'}</span>
+        {simulated && <span>0 = no heat</span>}
         {!heat && <small>Layer hidden</small>}
       </div>
     </section>

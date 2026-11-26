@@ -5,8 +5,6 @@ export interface BrowseFilters {
   method: 'all' | PrinterSite['method']
   hours: 'all' | PrinterSite['serviceScope']
   queue: 'actual' | 'demo'
-  length: 'all' | 'empty' | 'short' | 'busy' | 'exact'
-  exact: string
 }
 
 export const initialFilters: BrowseFilters = {
@@ -14,8 +12,6 @@ export const initialFilters: BrowseFilters = {
   method: 'all',
   hours: 'all',
   queue: 'actual',
-  length: 'all',
-  exact: '',
 }
 export const paymentNames = {
   quota: 'Printing quota',
@@ -24,24 +20,44 @@ export const paymentNames = {
 }
 const order = new Intl.Collator('en', { numeric: true, sensitivity: 'base' })
 
-export function parseQueueLength(text: string): number | null {
+export function parseStudentTotal(text: string): number | null {
   const digits = text.trim()
   if (!/^\d+$/.test(digits)) return null
   const count = Number(digits)
   return count <= 100 ? count : null
 }
 
-/** A participant may replace the seeded count for this simulated station. */
-export function demoPending(
-  id: string,
-  overrides?: ReadonlyMap<string, number>,
-) {
-  const edited = overrides?.get(id)
-  if (edited !== undefined) return edited
-  let seed = 7
-  for (const character of id)
-    seed = (Math.imul(seed, 31) + character.charCodeAt(0)) >>> 0
-  return seed % 10
+// Each simulated student contributes one job. One ticket per known device
+// (or one per listing when inventory is unlisted) weights the assignment.
+export function distributeStudents(
+  directory: PrinterSite[],
+  total: number,
+): Map<string, number> {
+  if (!Number.isInteger(total) || total < 0 || total > 100) {
+    throw new RangeError(
+      'The campus total must be a whole number from 0 to 100.',
+    )
+  }
+  const counts = new Map(directory.map((site) => [site.id, 0]))
+  if (total === 0) return counts
+
+  const tickets = directory
+    .flatMap((site) => Array<string>(site.units ?? 1).fill(site.id))
+    .sort()
+  if (!tickets.length)
+    throw new RangeError('Assigning students requires a printer location.')
+
+  // Restart the same pseudo-random sequence for each scenario. Increasing
+  // the total adds students without moving those already in a queue.
+  let seed = 20261126
+  const modulus = 2147483647
+  for (let student = 0; student < total; student++) {
+    seed = (seed * 48271) % modulus
+    const index = Math.floor((seed / modulus) * tickets.length)
+    const id = tickets[index]
+    counts.set(id, counts.get(id)! + 1)
+  }
+  return counts
 }
 
 const floors = ['ground', 'first', 'second', 'third', 'fourth']
@@ -69,32 +85,13 @@ function normalize(value: string) {
     .trim()
 }
 
-export function matchSites(
-  sites: PrinterSite[],
-  filters: BrowseFilters,
-  readings?: ReadonlyMap<string, { pending: number | null }>,
-  demoCounts?: ReadonlyMap<string, number>,
-) {
+export function matchSites(sites: PrinterSite[], filters: BrowseFilters) {
   const words = normalize(filters.query).split(/\s+/).filter(Boolean)
-  const exact = parseQueueLength(filters.exact)
-  const applyLength =
-    filters.length !== 'all' && (filters.length !== 'exact' || exact !== null)
   const codes = new Set(sites.map((site) => site.building.toLowerCase()))
   return sites.filter((site) => {
     if (filters.method !== 'all' && site.method !== filters.method) return false
     if (filters.hours !== 'all' && site.serviceScope !== filters.hours)
       return false
-    if (applyLength && (filters.queue === 'demo' || readings)) {
-      const jobs =
-        filters.queue === 'demo'
-          ? demoPending(site.id, demoCounts)
-          : readings?.get(site.id)?.pending
-      if (jobs == null) return false
-      if (filters.length === 'exact' && jobs !== exact) return false
-      if (filters.length === 'empty' && jobs !== 0) return false
-      if (filters.length === 'short' && (jobs < 1 || jobs > 3)) return false
-      if (filters.length === 'busy' && jobs < 4) return false
-    }
     const search = normalize(
       [
         site.building,

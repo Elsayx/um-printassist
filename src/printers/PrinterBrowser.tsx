@@ -19,15 +19,14 @@ import {
   X,
 } from 'lucide-react'
 import CampusMap from './CampusMap'
-import QueueEditor from './QueueEditor'
+import StudentScenario from './StudentScenario'
 import { sites, type PrinterSite } from './directory'
 import {
-  demoPending,
+  distributeStudents,
   groupSites,
   initialFilters,
   matchSites,
   paymentNames,
-  parseQueueLength,
   type BrowseFilters,
 } from './browse'
 import { usePrinterStatus } from './status'
@@ -37,8 +36,8 @@ import './browse.css'
 type Props = {
   selected: string | null
   onSelect: (code: string | null) => void
-  demoCounts: ReadonlyMap<string, number>
-  onDemoCounts: (next: ReadonlyMap<string, number>) => void
+  studentTotal: number
+  onStudentTotal: (total: number) => void
   filters: BrowseFilters
   onFilters: (next: BrowseFilters) => void
 }
@@ -52,7 +51,6 @@ function SiteCard({
   site,
   demo,
   simulatedCount,
-  onEditCount,
   reading,
   open,
   onToggle,
@@ -60,7 +58,6 @@ function SiteCard({
   site: PrinterSite
   demo: boolean
   simulatedCount: number
-  onEditCount: (value: number) => void
   reading?: StationReading
   open: boolean
   onToggle: () => void
@@ -105,11 +102,6 @@ function SiteCard({
                   (count ?? 'Live count unavailable')
                 )}
               </dd>
-              {demo && (
-                <dd>
-                  <QueueEditor value={simulatedCount} onSave={onEditCount} />
-                </dd>
-              )}
             </div>
             {!demo && reading && (
               <div>
@@ -209,35 +201,36 @@ export default function PrinterBrowser({
   onSelect,
   filters,
   onFilters,
-  demoCounts,
-  onDemoCounts,
+  studentTotal,
+  onStudentTotal,
 }: Props) {
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [expanded, setExpanded] = useState<string | null | undefined>(undefined)
   const [mobileView, setMobileView] = useState<'map' | 'list'>('map')
   const resultsRef = useRef<HTMLHeadingElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
-  const [editNotice, setEditNotice] = useState('')
-  const invalidExact =
-    filters.length === 'exact' &&
-    filters.exact !== '' &&
-    parseQueueLength(filters.exact) === null
   const status = usePrinterStatus()
-  const readings = status.enabled ? status.byId : undefined
-  const hasReportedQueue =
-    readings &&
-    [...readings.values()].some((reading) => reading.pending !== null)
-  const filtered = useMemo(
-    () => matchSites(sites, filters, readings, demoCounts),
-    [filters, readings, demoCounts],
+  const simulated = filters.queue === 'demo'
+  const allocation = useMemo(
+    () => distributeStudents(sites, studentTotal),
+    [studentTotal],
   )
-  const groups = useMemo(() => groupSites(filtered, sites), [filtered])
-  const selectedGroup = groups.find((g) => g.building === selected)
+  const filtered = useMemo(() => matchSites(sites, filters), [filters])
+  const groups = useMemo(
+    () =>
+      groupSites(filtered, sites).map((group) => ({
+        ...group,
+        students: group.entries.reduce(
+          (sum, site) => sum + (allocation.get(site.id) ?? 0),
+          0,
+        ),
+      })),
+    [filtered, allocation],
+  )
+  const visibleStudents = groups.reduce((sum, group) => sum + group.students, 0)
+  const selectedGroup = groups.find((group) => group.building === selected)
   const activeFilters =
-    Number(filters.method !== 'all') +
-    Number(filters.hours !== 'all') +
-    Number(filters.queue === 'demo') +
-    Number(filters.length !== 'all')
+    Number(filters.method !== 'all') + Number(filters.hours !== 'all')
   const hasFilters = !!filters.query || !!activeFilters
   const focusedEntry =
     selectedGroup?.entries.find((e) => e.id === expanded)?.id ??
@@ -260,38 +253,15 @@ export default function PrinterBrowser({
     value: BrowseFilters[K],
   ) {
     const next = { ...filters, [key]: value }
-    setEditNotice('')
-    if (key === 'queue') {
-      next.length = 'all'
-      next.exact = ''
-    }
     onFilters(next)
     if (
       selected &&
-      !matchSites(sites, next, readings, demoCounts).some(
-        (item) => item.building === selected,
-      )
+      !matchSites(sites, next).some((item) => item.building === selected)
     )
       onSelect(null)
   }
-  function saveDemoCount(site: PrinterSite, value: number) {
-    const next = new Map(demoCounts).set(site.id, value)
-    onDemoCounts(next)
-    const matches = matchSites(sites, filters, readings, next)
-    if (!matches.some((item) => item.id === site.id)) {
-      setEditNotice(
-        `${site.building} · ${site.location}: saved ${value} pending jobs. This listing is outside the current filter.`,
-      )
-      if (!matches.some((item) => item.building === selected)) onSelect(null)
-      else
-        requestAnimationFrame(() =>
-          resultsRef.current?.focus({ preventScroll: true }),
-        )
-    } else setEditNotice('')
-  }
   function reset() {
-    setEditNotice('')
-    onFilters({ ...initialFilters })
+    onFilters({ ...initialFilters, queue: filters.queue })
     onSelect(null)
     searchRef.current?.focus({ preventScroll: true })
   }
@@ -312,18 +282,35 @@ export default function PrinterBrowser({
             Explore campus locations, check service hours and choose how to pay.
           </p>
         </div>
-        <a
-          className="pb-emap"
-          href="https://map.um.edu.mo/"
-          target="_blank"
-          rel="noreferrer"
-        >
-          <MapPin size={15} />
-          Official UM eMap
-          <ArrowUpRight size={14} />
-          <span className="pa-sr"> (opens in a new tab)</span>
-        </a>
+        <div className="pb-header-tools">
+          <label className="pb-data-mode">
+            Queue data
+            <select
+              value={filters.queue}
+              onChange={(e) =>
+                setFilter('queue', e.target.value as BrowseFilters['queue'])
+              }
+            >
+              <option value="actual">Campus information</option>
+              <option value="demo">Simulated students</option>
+            </select>
+          </label>
+          <a
+            className="pb-emap"
+            href="https://map.um.edu.mo/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <MapPin size={15} />
+            Official UM eMap
+            <ArrowUpRight size={14} />
+            <span className="pa-sr"> (opens in a new tab)</span>
+          </a>
+        </div>
       </header>
+      {simulated && (
+        <StudentScenario total={studentTotal} onApply={onStudentTotal} />
+      )}
       <section className="pb-toolbar" aria-label="Search and filter printers">
         <div className="pb-searchrow">
           <label className="pb-search">
@@ -380,79 +367,24 @@ export default function PrinterBrowser({
               <option value="unknown">Hours unlisted</option>
             </select>
           </label>
-          <label>
-            Queue data
-            <select
-              value={filters.queue}
-              onChange={(e) =>
-                setFilter('queue', e.target.value as BrowseFilters['queue'])
-              }
-            >
-              <option value="actual">Campus information</option>
-              <option value="demo">Simulated counts</option>
-            </select>
-          </label>
-          {(filters.queue === 'demo' ||
-            hasReportedQueue ||
-            (status.enabled && filters.length !== 'all')) && (
-            <label>
-              {filters.queue === 'demo'
-                ? 'Demo queue length'
-                : 'Reported queue length'}
-              <select
-                value={filters.length}
-                onChange={(e) =>
-                  setFilter('length', e.target.value as BrowseFilters['length'])
-                }
-              >
-                <option value="all">Any length</option>
-                <option value="empty">0 jobs</option>
-                <option value="short">1–3 jobs</option>
-                <option value="busy">4+ jobs</option>
-                <option value="exact">Exact count…</option>
-              </select>
-            </label>
-          )}
-          {filters.length === 'exact' && (
-            <label htmlFor="exact-pending-count">
-              Exact count (0–100)
-              <input
-                id="exact-pending-count"
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                placeholder="0–100"
-                value={filters.exact}
-                aria-invalid={invalidExact}
-                aria-describedby={
-                  invalidExact ? 'exact-pending-error' : undefined
-                }
-                onChange={(e) => setFilter('exact', e.target.value)}
-              />
-            </label>
-          )}
         </div>
-        {invalidExact && (
-          <p className="pb-filter-error" role="status" id="exact-pending-error">
-            Enter a whole number from 0 to 100 to apply the exact filter.
-          </p>
-        )}
       </section>
-      {editNotice && (
-        <p className="pb-edit-notice" role="status">
-          {editNotice}
-        </p>
-      )}
-      {filters.queue === 'demo' && (
-        <p className="pb-demo-flag">
-          <Info size={15} />
-          <span>Simulated queue counts · for demonstration only</span>
-        </p>
-      )}
       <div className="pb-statusline">
         <span role="status" aria-live="polite">
           {plural(filtered.length, 'listing')} in{' '}
           {plural(groups.length, 'building')}
+          {simulated && (
+            <>
+              {' '}
+              · <strong>{plural(studentTotal, 'student')} campus-wide</strong>
+              {filtered.length !== sites.length && (
+                <>
+                  {' '}
+                  · {plural(visibleStudents, 'student')} in matching listings
+                </>
+              )}
+            </>
+          )}
         </span>
         {hasFilters && (
           <button onClick={reset}>
@@ -480,6 +412,7 @@ export default function PrinterBrowser({
       <div className={'pb-grid pb-show-' + mobileView}>
         <div className="pb-mapcol">
           <CampusMap
+            simulated={simulated}
             groups={groups}
             selected={selectedGroup?.building ?? null}
             onSelect={selectBuilding}
@@ -509,6 +442,8 @@ export default function PrinterBrowser({
                 </h2>
                 <p>
                   {plural(selectedGroup.count, 'matching listing')}
+                  {simulated &&
+                    ' · ' + plural(selectedGroup.students, 'simulated student')}
                   {selectedGroup.devices !== null
                     ? ' · ' + plural(selectedGroup.devices, 'listed device')
                     : ''}
@@ -519,11 +454,10 @@ export default function PrinterBrowser({
                   <SiteCard
                     key={site.id}
                     site={site}
-                    reading={readings?.get(site.id)}
+                    reading={status.byId.get(site.id)}
                     open={focusedEntry === site.id}
-                    demo={filters.queue === 'demo'}
-                    simulatedCount={demoPending(site.id, demoCounts)}
-                    onEditCount={(value) => saveDemoCount(site, value)}
+                    demo={simulated}
+                    simulatedCount={allocation.get(site.id) ?? 0}
                     onToggle={() =>
                       setExpanded(focusedEntry === site.id ? null : site.id)
                     }
@@ -551,13 +485,24 @@ export default function PrinterBrowser({
                           ' ' +
                           group.buildingName +
                           ', ' +
-                          plural(group.count, 'location')
+                          plural(group.count, 'location') +
+                          (simulated
+                            ? ', ' + plural(group.students, 'simulated student')
+                            : '')
                         }
                       >
                         <span className="pb-code">{group.building}</span>
                         <span className="pb-building-text">
                           <strong>{group.buildingName}</strong>
                           <small>
+                            {simulated && (
+                              <>
+                                <strong>
+                                  {plural(group.students, 'student')}
+                                </strong>{' '}
+                                ·{' '}
+                              </>
+                            )}
                             {plural(group.count, 'listing')} ·{' '}
                             {[
                               ...new Set(
@@ -589,17 +534,13 @@ export default function PrinterBrowser({
           No locations match this search. Change a filter or clear the search.
         </p>
       )}
-      <p
-        className={
-          'pb-data-note' + (filters.queue === 'demo' ? ' pb-demo' : '')
-        }
-      >
-        {filters.queue === 'demo' ? <Info size={17} /> : <WifiOff size={17} />}
+      <p className="pb-data-note">
+        {simulated ? <Info size={17} /> : <WifiOff size={17} />}
         <span>
-          {filters.queue === 'demo' ? (
+          {simulated ? (
             <>
-              <strong>Demo queues.</strong> Counts are fictional examples for
-              this prototype.
+              <strong>Student simulation.</strong> Counts describe this scenario
+              only. Actual demand on campus may differ.
             </>
           ) : status.byId.size > 0 ? (
             <>
@@ -612,8 +553,8 @@ export default function PrinterBrowser({
               <strong>
                 Live queue counts and device status are unavailable.
               </strong>{' '}
-              Listed hours describe scheduled access. Select simulated counts to
-              try queue filtering.
+              Listed hours describe scheduled access. Choose Simulated students
+              to explore campus demand.
             </>
           )}
         </span>

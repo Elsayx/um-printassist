@@ -5,7 +5,8 @@ import {
   groupSites,
   initialFilters,
   matchSites,
-  parseQueueLength,
+  distributeStudents,
+  parseStudentTotal,
 } from '../src/printers/browse'
 
 test('rooms, exact building codes and conventional floor names resolve to the same public listings', () => {
@@ -15,22 +16,6 @@ test('rooms, exact building codes and conventional floor names resolve to the sa
   assert.deepEqual(run('E2 4th floor'), run('library 4/F'))
   assert.ok(run('E2').every((id) => id.startsWith('e2-')))
   assert.ok(run('E6 floor 2').includes('e6-2093'))
-})
-
-test('queue brackets work only in demo mode and each bracket has a discoverable example', () => {
-  const all = sites.length
-  let total = 0
-  for (const length of ['empty', 'short', 'busy'] as const) {
-    const examples = matchSites(sites, {
-      ...initialFilters,
-      queue: 'demo',
-      length,
-    })
-    assert.ok(examples.length > 0)
-    total += examples.length
-    assert.equal(matchSites(sites, { ...initialFilters, length }).length, all)
-  }
-  assert.equal(total, all)
 })
 
 test('counts for known devices and building coordinates stay consistent as filters change', () => {
@@ -46,32 +31,53 @@ test('counts for known devices and building coordinates stay consistent as filte
   assert.deepEqual(groupSites([]), [])
 })
 
-test('exact queue lengths include 0 and 100, with separate sources for demo and reported counts', () => {
-  const [target, other, unknown] = sites
-  const sample = [target, other, unknown]
-  for (let n = 0; n <= 100; n++) {
-    const counts = new Map([
-      [target.id, n],
-      [other.id, (n + 1) % 101],
-      [unknown.id, (n + 2) % 101],
-    ])
-    const readings = new Map([
-      [other.id, { pending: n }],
-      [unknown.id, { pending: null }],
-    ])
-    const exact = {
-      ...initialFilters,
-      length: 'exact' as const,
-      exact: String(n),
-    }
-    assert.equal(parseQueueLength(exact.exact), n)
-    assert.deepEqual(
-      matchSites(sample, { ...exact, queue: 'demo' }, readings, counts),
-      [target],
+test('all 101 campus totals allocate one job per student and adding a student never moves an existing job', () => {
+  let previous = distributeStudents(sites, 0)
+  assert.equal(previous.size, sites.length)
+  for (let total = 0; total <= 100; total++) {
+    const counts = distributeStudents(sites, total)
+    assert.equal(parseStudentTotal(String(total)), total)
+    assert.equal(
+      [...counts.values()].reduce((sum, count) => sum + count, 0),
+      total,
     )
-    assert.deepEqual(matchSites(sample, exact, readings, counts), [other])
+    for (const site of sites) {
+      const count = counts.get(site.id)!
+      assert.ok(Number.isInteger(count) && count >= 0)
+      assert.ok(count >= previous.get(site.id)!)
+    }
+    assert.deepEqual(distributeStudents([...sites].reverse(), total), counts)
+    previous = counts
   }
   for (const invalid of ['', ' ', '-1', '101', '2.6', '1e2', '12x']) {
-    assert.equal(parseQueueLength(invalid), null)
+    assert.equal(parseStudentTotal(invalid), null)
   }
+  for (const invalid of [-1, 101, 0.1, Infinity, NaN]) {
+    assert.throws(() => distributeStudents(sites, invalid), RangeError)
+  }
+})
+
+test('both data modes keep the same locations; location filters select a subset of the campus allocation', () => {
+  const counts = distributeStudents(sites, 83)
+  const filters = { ...initialFilters, query: 'library' }
+  const matches = matchSites(sites, filters)
+  assert.deepEqual(matches, matchSites(sites, { ...filters, queue: 'demo' }))
+  assert.ok(matches.length > 0 && matches.length < sites.length)
+  const visible = matches.reduce((sum, site) => sum + counts.get(site.id)!, 0)
+  const hidden = sites
+    .filter((site) => !matches.includes(site))
+    .reduce((sum, site) => sum + counts.get(site.id)!, 0)
+  assert.equal(visible + hidden, 83)
+  assert.ok(visible > 0 && hidden > 0)
+})
+
+test('known device capacity weights an assignment while an unknown capacity still receives students', () => {
+  const large = { ...sites[0], id: 'large', units: 8 }
+  const uncounted = { ...sites[1], id: 'unknown', units: undefined }
+  const counts = distributeStudents([large, uncounted], 100)
+  assert.ok(counts.get(uncounted.id)! > 0)
+  assert.ok(counts.get(large.id)! > counts.get(uncounted.id)!)
+  assert.equal(distributeStudents([uncounted], 100).get(uncounted.id), 100)
+  assert.equal(distributeStudents([], 0).size, 0)
+  assert.throws(() => distributeStudents([], 1), RangeError)
 })

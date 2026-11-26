@@ -74,31 +74,27 @@ test('search and payment or service filters combine, including an empty result t
   await expect(e2).toBeVisible()
 })
 
-test('live queue uncertainty stays distinct from the opt-in simulated queue', async ({
+test('campus information stays separate from simulated student queues', async ({
   page,
 }) => {
   await enterFinder(page)
-  await openFilters(page)
   const mode = page.getByRole('combobox', { name: 'Queue data' })
-  const queue = page.getByRole('combobox', { name: 'Demo queue length' })
+  const total = page.getByRole('textbox', { name: 'Total simulated students' })
   await expect(mode).toHaveValue('actual')
-  await expect(queue).toHaveCount(0)
+  await expect(total).toHaveCount(0)
   await mode.selectOption('demo')
-  await queue.selectOption('empty')
-  await expect(queue).toHaveValue('empty')
+  await total.fill('0')
+  await page.getByRole('button', { name: 'Apply total' }).click()
   const locations = page.getByRole('region', {
     name: 'Matching printer locations',
   })
-  await locations
-    .getByRole('button', { name: /locations?$/i })
-    .first()
-    .click()
+  await locations.getByRole('button').first().click()
   await expect(locations.getByText(/^0\s*·\s*simulated$/i)).toBeVisible()
   await mode.selectOption('actual')
   await expect(
     locations.getByText('Live count unavailable', { exact: true }),
   ).toBeVisible()
-  await expect(queue).toHaveCount(0)
+  await expect(total).toHaveCount(0)
 })
 
 test('the printer finder and station details pass automated accessibility checks', async ({
