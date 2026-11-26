@@ -1,0 +1,10 @@
+Campus basemap for UM PrintAssist
+
+Geographic data © OpenStreetMap contributors.
+Open Database License (ODbL) 1.0: https://opendatacommons.org/licenses/odbl/1-0/
+Attribution and usage: https://www.openstreetmap.org/copyright
+
+The bundled campus.svg is a rendered map of an OpenStreetMap snapshot retrieved on 2026-11-26. Source extent (longitude, latitude, WGS84): 113.536,22.118 to 113.555,22.141. Original data are available at:
+https://api.openstreetmap.org/api/0.6/map?bbox=113.536,22.118,113.555,22.141
+
+The cartography projects geographic coordinates onto a local metre grid centred at 113.544° E, 22.129° N. It clips and simplifies the original land, water, road, path, and building geometry. The heatmap and interactive printer listings are separate application layers. The map is for campus orientation.

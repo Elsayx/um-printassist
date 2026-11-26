@@ -26,6 +26,7 @@ jobs:
       - run: npm test
       - run: npm run build -- --base="$SITE_BASE/"
         env:
+          VITE_PRINTER_STATUS_URL: ${{ vars.VITE_PRINTER_STATUS_URL }}
           SITE_BASE: ${{ steps.pages.outputs.base_path }}
       - uses: actions/upload-pages-artifact@v4
         with:

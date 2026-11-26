@@ -371,3 +371,14 @@
     gap: 10px;
   }
 }
+
+.job-map-link {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: fit-content;
+  min-height: 44px;
+  margin-top: 4px;
+  color: #2451ab;
+  text-underline-offset: 3px;
+}

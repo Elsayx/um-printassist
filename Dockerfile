@@ -3,6 +3,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY . .
+ARG VITE_PRINTER_STATUS_URL
 RUN npm run build -- --base=/
 
 FROM nginx:1.28-alpine

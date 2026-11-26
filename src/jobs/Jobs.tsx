@@ -10,6 +10,7 @@ import {
   FileText,
   HelpCircle,
   LoaderCircle,
+  MapPin,
   RefreshCw,
   Send,
   Unplug,
@@ -245,6 +246,10 @@ function JobDetail({
                 Back to workspace
                 <ArrowRight size={17} aria-hidden="true" />
               </button>
+              <a className="job-map-link" href="#printers">
+                <MapPin size={16} aria-hidden="true" />
+                Browse campus printers
+              </a>
             </>
           )}
           {job.state === 'failed' && (

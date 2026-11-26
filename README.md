@@ -16,7 +16,7 @@ cd um-printassist
 docker compose up -d --build
 ```
 
-Open **http://localhost:8080** on the host computer. The initial build needs internet access. Once built, the app, PDF worker, fonts and sample documents run on the local network. Only the optional ICTO help link opens an external site. To stop the app, run `docker compose down`.
+Open **http://localhost:8080** on the host computer. The initial build needs internet access. Once built, the app, PDF worker, fonts and sample documents run on the local network. The printer map also runs locally. Optional source, attribution and help links open external sites. To stop the app, run `docker compose down`.
 
 **Connect a phone or another laptop.** On Windows run `ipconfig` and find the active Wi-Fi adapter's IPv4 address. On macOS look under System Settings → Wi-Fi → Details → TCP/IP. On Linux run `hostname -I` and choose the LAN address. On the other device, join the same Wi-Fi and open `http://HOST-LAN-IP:8080`, replacing the placeholder with the address. Allow inbound TCP 8080 on the host’s private network if prompted. Keep the host awake and use a stable LAN address during testing. If guest Wi-Fi blocks devices from reaching one another, use a team-controlled router or hotspot. A LAN address only works on that network.
 
@@ -30,6 +30,20 @@ npm run dev -- --port 8080
 ```
 
 For a static production build, run `npm run build` and serve the contents of `dist/` over HTTP. The UI uses hash navigation and relative assets. Uploaded file contents remain in browser memory. Simulated job names, settings and statuses use tab-scoped session storage where available.
+
+## Campus printer map
+
+[Open **Find printers**](https://elsayx.github.io/um-printassist/#printers) in the same app as the print workspace and job list. Search by building, floor or room, then filter by payment method or service schedule. Select a building on the map or in the accessible list to see its floor-specific entries. Each entry links to its sources. The heatmap counts matching directory listings by building. Some listings cover multiple devices.
+
+The directory combines the [UM eMap](https://map.um.edu.mo/), [ICTO printer information](https://icto.um.edu.mo/printing/follow-you-student-printing/), [Library facilities](https://library.um.edu.mo/using_the_lib/facilities_en) and individual unit pages. Building access hours and staffed support hours are shown separately. Unpublished details are marked in the directory. The offline basemap uses OpenStreetMap contributors’ data; see [map attribution](public/maps/NOTICE.txt).
+
+The public prototype has no live printer queue or hardware-status feed connected. To exercise the queue filter, choose **Queue data → Simulated counts**. Numbers in that mode are stable fictional examples for each listing. PrintAssist does not send jobs to a real device or infer queue lengths from a student's Follow-You submissions.
+
+### Optional operator readings
+
+An operator can supply an approved, browser-readable JSON feed via the build-time variable `VITE_PRINTER_STATUS_URL`. Leave it empty for the public simulator. The URL is public and should contain no credentials. Use an HTTPS endpoint for GitHub Pages. Station IDs are listed in `src/printers/directory.ts`. The reader accepts an object with a `readings` array; each item contains a station `id`, a nonnegative integer `pending` or `null`, an `availability` of `available`, `unavailable` or `unknown`, and an ISO timestamp `observedAt` with a timezone. Only recent observations (up to 15 minutes old) are shown. A missing count stays unknown, even when a device reports that it is available.
+
+For a local Docker build, set the variable in `.env` and rebuild. For GitHub Pages, set the repository Actions variable of the same name and rerun the publish workflow. Fresh readings show their observation time and enable queue filtering. The public version ships with the feed unset.
 
 ## Try the two study tasks
 

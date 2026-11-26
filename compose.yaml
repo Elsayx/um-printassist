@@ -1,6 +1,9 @@
 services:
   printassist:
-    build: .
+    build:
+      context: .
+      args:
+        VITE_PRINTER_STATUS_URL: "${VITE_PRINTER_STATUS_URL:-}"
     ports:
       - "${PRINTASSIST_PORT:-8080}:80"
     healthcheck:

@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  lazy,
+  Suspense,
+  type MouseEvent,
+} from 'react'
 import {
   ArrowUpRight,
   ArrowRight,
@@ -14,6 +22,7 @@ import {
   Info,
   Layers,
   ListOrdered,
+  MapPin,
   LoaderCircle,
   PanelsTopLeft,
   Printer,
@@ -39,6 +48,9 @@ import {
 import type { SourceDocument } from './files/documents'
 import Jobs from './jobs/Jobs'
 import { useJobs } from './jobs/useJobs'
+
+import { initialFilters } from './printers/browse'
+const PrinterBrowser = lazy(() => import('./printers/PrinterBrowser'))
 
 const handout = 'lecture_handout_12p.pdf'
 const samples = [
@@ -72,6 +84,8 @@ type Outcome = 'confirmed' | 'pending' | 'unconfirmed' | 'failed'
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 function currentView() {
   const hash = window.location.hash.slice(1)
+  if (hash === 'printers' || hash.startsWith('printers/'))
+    return { tab: 'printers', id: hash.split('/')[1] || null }
   return hash === 'jobs' || hash.startsWith('jobs/')
     ? { tab: 'jobs', id: hash.split('/')[1] || null }
     : { tab: 'workspace', id: null }
@@ -79,6 +93,7 @@ function currentView() {
 
 export default function App() {
   const [route, setRoute] = useState(currentView)
+  const [browseFilters, setBrowseFilters] = useState({ ...initialFilters })
   const [dialog, setDialog] = useState<
     'files' | 'review' | 'help' | 'study' | null
   >(null)
@@ -98,21 +113,27 @@ export default function App() {
   const lastSubmitted = useRef(false)
   const jobStore = useJobs()
   useEffect(() => {
+    let lastTab = currentView().tab
     const listener = () => {
-      setRoute(currentView())
+      const next = currentView()
+      const stayingInMap = next.tab === 'printers' && lastTab === 'printers'
+      lastTab = next.tab
+      setRoute(next)
       setDialog(null)
       requestAnimationFrame(() => {
-        if (currentView().tab === 'workspace')
-          mainRef.current?.focus({ preventScroll: true })
+        if (stayingInMap) return
+        if (next.tab !== 'jobs') mainRef.current?.focus({ preventScroll: true })
         window.scrollTo(0, 0)
       })
     }
     window.addEventListener('hashchange', listener)
     return () => window.removeEventListener('hashchange', listener)
   }, [])
-  function navigate(tab: 'workspace' | 'jobs', id: string | null = null) {
-    const target =
-      tab === 'workspace' ? 'workspace' : 'jobs' + (id ? '/' + id : '')
+  function navigate(
+    tab: 'workspace' | 'jobs' | 'printers',
+    id: string | null = null,
+  ) {
+    const target = tab + (id ? '/' + id : '')
     if (window.location.hash === '#' + target) {
       window.scrollTo(0, 0)
       return
@@ -160,8 +181,11 @@ export default function App() {
   }, [route.tab])
   useEffect(() => {
     document.title =
-      (route.tab === 'jobs' ? 'Print jobs' : 'Print workspace') +
-      ' · PrintAssist'
+      (route.tab === 'jobs'
+        ? 'Print jobs'
+        : route.tab === 'printers'
+          ? 'Find a printer'
+          : 'Print workspace') + ' · PrintAssist'
   }, [route.tab])
   const layout = useMemo(
     () =>
@@ -297,6 +321,13 @@ export default function App() {
             >
               <ListOrdered size={17} />
               Print jobs
+            </a>
+            <a
+              href="#printers"
+              aria-current={route.tab === 'printers' ? 'page' : undefined}
+            >
+              <MapPin size={17} />
+              Find printers
             </a>
           </nav>
           <div className="pa-top-tools">
@@ -455,6 +486,21 @@ export default function App() {
               )
             )}
           </>
+        ) : route.tab === 'printers' ? (
+          <Suspense
+            fallback={
+              <div role="status" className="pa-wait">
+                Opening campus map…
+              </div>
+            }
+          >
+            <PrinterBrowser
+              filters={browseFilters}
+              onFilters={setBrowseFilters}
+              selected={route.id}
+              onSelect={(code) => navigate('printers', code)}
+            />
+          </Suspense>
         ) : (
           <Jobs
             jobs={jobStore.jobs}

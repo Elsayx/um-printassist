@@ -1,0 +1,43 @@
+import { expect, test } from '@playwright/test'
+
+test('map heat follows filters, supports keyboard navigation and works on a narrow screen', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 375, height: 830 })
+  await page.goto('./#printers')
+  const map = page.getByRole('region', { name: 'Campus heatmap' })
+  await expect(map).toBeVisible()
+  const marker = (building: string) =>
+    map.getByRole('button', { name: new RegExp('^' + building + ', ') })
+  await expect(marker('E6')).toBeVisible()
+  await expect(marker('S9')).toBeVisible()
+  const canvas = map.locator('canvas')
+  const initialHeat = await canvas.evaluate((el) => el.toDataURL())
+  const layer = map.getByRole('button', { name: 'Heat layer' })
+  await layer.click()
+  await expect(layer).toHaveAttribute('aria-pressed', 'false')
+  await expect(canvas).toBeHidden()
+  await layer.click()
+  await expect(canvas).toBeVisible()
+  const surface = map.getByRole('group', { name: /^Campus map/ })
+  const reset = map.getByRole('button', { name: 'Reset map view' })
+  const zoomOut = map.getByRole('button', { name: 'Zoom out' })
+  await expect(zoomOut).toBeDisabled()
+  const original = await map.locator('.cm-base').getAttribute('style')
+  await surface.focus()
+  await page.keyboard.press('+')
+  await expect(zoomOut).toBeEnabled()
+  await page.keyboard.press('ArrowRight')
+  await expect(map.locator('.cm-base')).not.toHaveAttribute('style', original!)
+  await reset.click()
+  await expect(map.locator('.cm-base')).toHaveAttribute('style', original!)
+  const search = page.getByRole('searchbox', { name: 'Search printers' })
+  await search.fill('4016')
+  await expect(marker('E2')).toHaveAccessibleName(/1 matching listing$/)
+  await expect(marker('S9')).toHaveCount(0)
+  await expect
+    .poll(() => canvas.evaluate((el) => el.toDataURL()))
+    .not.toBe(initialHeat)
+  await marker('E2').click()
+  await expect(page).toHaveURL(/printers\/E2/i)
+})
