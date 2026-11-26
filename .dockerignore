@@ -1,0 +1,15 @@
+.git
+.github
+node_modules
+dist
+public/pdfjs-assets
+playwright-report
+test-results
+.DS_Store
+**/.DS_Store
+.env*
+docs
+e2e
+tests
+playwright.config.ts
+README.md
