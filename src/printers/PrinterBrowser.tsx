@@ -19,6 +19,7 @@ import {
   X,
 } from 'lucide-react'
 import CampusMap from './CampusMap'
+import QueueEditor from './QueueEditor'
 import { sites, type PrinterSite } from './directory'
 import {
   demoPending,
@@ -26,6 +27,7 @@ import {
   initialFilters,
   matchSites,
   paymentNames,
+  parseQueueLength,
   type BrowseFilters,
 } from './browse'
 import { usePrinterStatus } from './status'
@@ -35,6 +37,8 @@ import './browse.css'
 type Props = {
   selected: string | null
   onSelect: (code: string | null) => void
+  demoCounts: ReadonlyMap<string, number>
+  onDemoCounts: (next: ReadonlyMap<string, number>) => void
   filters: BrowseFilters
   onFilters: (next: BrowseFilters) => void
 }
@@ -47,17 +51,21 @@ const methodLabel = (site: PrinterSite) =>
 function SiteCard({
   site,
   demo,
+  simulatedCount,
+  onEditCount,
   reading,
   open,
   onToggle,
 }: {
   site: PrinterSite
   demo: boolean
+  simulatedCount: number
+  onEditCount: (value: number) => void
   reading?: StationReading
   open: boolean
   onToggle: () => void
 }) {
-  const count = demo ? demoPending(site.id) : reading?.pending
+  const count = demo ? simulatedCount : reading?.pending
   return (
     <article className={'pb-site' + (open ? ' is-open' : '')}>
       <h3>
@@ -97,6 +105,11 @@ function SiteCard({
                   (count ?? 'Live count unavailable')
                 )}
               </dd>
+              {demo && (
+                <dd>
+                  <QueueEditor value={simulatedCount} onSave={onEditCount} />
+                </dd>
+              )}
             </div>
             {!demo && reading && (
               <div>
@@ -196,20 +209,27 @@ export default function PrinterBrowser({
   onSelect,
   filters,
   onFilters,
+  demoCounts,
+  onDemoCounts,
 }: Props) {
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [expanded, setExpanded] = useState<string | null | undefined>(undefined)
   const [mobileView, setMobileView] = useState<'map' | 'list'>('map')
   const resultsRef = useRef<HTMLHeadingElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
+  const [editNotice, setEditNotice] = useState('')
+  const invalidExact =
+    filters.length === 'exact' &&
+    filters.exact !== '' &&
+    parseQueueLength(filters.exact) === null
   const status = usePrinterStatus()
   const readings = status.enabled ? status.byId : undefined
   const hasReportedQueue =
     readings &&
     [...readings.values()].some((reading) => reading.pending !== null)
   const filtered = useMemo(
-    () => matchSites(sites, filters, readings),
-    [filters, readings],
+    () => matchSites(sites, filters, readings, demoCounts),
+    [filters, readings, demoCounts],
   )
   const groups = useMemo(() => groupSites(filtered, sites), [filtered])
   const selectedGroup = groups.find((g) => g.building === selected)
@@ -240,17 +260,37 @@ export default function PrinterBrowser({
     value: BrowseFilters[K],
   ) {
     const next = { ...filters, [key]: value }
-    if (key === 'queue') next.length = 'all'
+    setEditNotice('')
+    if (key === 'queue') {
+      next.length = 'all'
+      next.exact = ''
+    }
     onFilters(next)
     if (
       selected &&
-      !matchSites(sites, next, readings).some(
+      !matchSites(sites, next, readings, demoCounts).some(
         (item) => item.building === selected,
       )
     )
       onSelect(null)
   }
+  function saveDemoCount(site: PrinterSite, value: number) {
+    const next = new Map(demoCounts).set(site.id, value)
+    onDemoCounts(next)
+    const matches = matchSites(sites, filters, readings, next)
+    if (!matches.some((item) => item.id === site.id)) {
+      setEditNotice(
+        `${site.building} · ${site.location}: saved ${value} pending jobs. This listing is outside the current filter.`,
+      )
+      if (!matches.some((item) => item.building === selected)) onSelect(null)
+      else
+        requestAnimationFrame(() =>
+          resultsRef.current?.focus({ preventScroll: true }),
+        )
+    } else setEditNotice('')
+  }
   function reset() {
+    setEditNotice('')
     onFilters({ ...initialFilters })
     onSelect(null)
     searchRef.current?.focus({ preventScroll: true })
@@ -369,11 +409,40 @@ export default function PrinterBrowser({
                 <option value="empty">0 jobs</option>
                 <option value="short">1–3 jobs</option>
                 <option value="busy">4+ jobs</option>
+                <option value="exact">Exact count…</option>
               </select>
             </label>
           )}
+          {filters.length === 'exact' && (
+            <label htmlFor="exact-pending-count">
+              Exact count (0–100)
+              <input
+                id="exact-pending-count"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                placeholder="0–100"
+                value={filters.exact}
+                aria-invalid={invalidExact}
+                aria-describedby={
+                  invalidExact ? 'exact-pending-error' : undefined
+                }
+                onChange={(e) => setFilter('exact', e.target.value)}
+              />
+            </label>
+          )}
         </div>
+        {invalidExact && (
+          <p className="pb-filter-error" role="status" id="exact-pending-error">
+            Enter a whole number from 0 to 100 to apply the exact filter.
+          </p>
+        )}
       </section>
+      {editNotice && (
+        <p className="pb-edit-notice" role="status">
+          {editNotice}
+        </p>
+      )}
       {filters.queue === 'demo' && (
         <p className="pb-demo-flag">
           <Info size={15} />
@@ -453,6 +522,8 @@ export default function PrinterBrowser({
                     reading={readings?.get(site.id)}
                     open={focusedEntry === site.id}
                     demo={filters.queue === 'demo'}
+                    simulatedCount={demoPending(site.id, demoCounts)}
+                    onEditCount={(value) => saveDemoCount(site, value)}
                     onToggle={() =>
                       setExpanded(focusedEntry === site.id ? null : site.id)
                     }

@@ -5,7 +5,8 @@ export interface BrowseFilters {
   method: 'all' | PrinterSite['method']
   hours: 'all' | PrinterSite['serviceScope']
   queue: 'actual' | 'demo'
-  length: 'all' | 'empty' | 'short' | 'busy'
+  length: 'all' | 'empty' | 'short' | 'busy' | 'exact'
+  exact: string
 }
 
 export const initialFilters: BrowseFilters = {
@@ -14,6 +15,7 @@ export const initialFilters: BrowseFilters = {
   hours: 'all',
   queue: 'actual',
   length: 'all',
+  exact: '',
 }
 export const paymentNames = {
   quota: 'Printing quota',
@@ -22,8 +24,20 @@ export const paymentNames = {
 }
 const order = new Intl.Collator('en', { numeric: true, sensitivity: 'base' })
 
-/** Stable synthetic examples for an explicitly selected simulator mode. */
-export function demoPending(id: string) {
+export function parseQueueLength(text: string): number | null {
+  const digits = text.trim()
+  if (!/^\d+$/.test(digits)) return null
+  const count = Number(digits)
+  return count <= 100 ? count : null
+}
+
+/** A participant may replace the seeded count for this simulated station. */
+export function demoPending(
+  id: string,
+  overrides?: ReadonlyMap<string, number>,
+) {
+  const edited = overrides?.get(id)
+  if (edited !== undefined) return edited
   let seed = 7
   for (const character of id)
     seed = (Math.imul(seed, 31) + character.charCodeAt(0)) >>> 0
@@ -59,19 +73,24 @@ export function matchSites(
   sites: PrinterSite[],
   filters: BrowseFilters,
   readings?: ReadonlyMap<string, { pending: number | null }>,
+  demoCounts?: ReadonlyMap<string, number>,
 ) {
   const words = normalize(filters.query).split(/\s+/).filter(Boolean)
+  const exact = parseQueueLength(filters.exact)
+  const applyLength =
+    filters.length !== 'all' && (filters.length !== 'exact' || exact !== null)
   const codes = new Set(sites.map((site) => site.building.toLowerCase()))
   return sites.filter((site) => {
     if (filters.method !== 'all' && site.method !== filters.method) return false
     if (filters.hours !== 'all' && site.serviceScope !== filters.hours)
       return false
-    if (filters.length !== 'all' && (filters.queue === 'demo' || readings)) {
+    if (applyLength && (filters.queue === 'demo' || readings)) {
       const jobs =
         filters.queue === 'demo'
-          ? demoPending(site.id)
+          ? demoPending(site.id, demoCounts)
           : readings?.get(site.id)?.pending
       if (jobs == null) return false
+      if (filters.length === 'exact' && jobs !== exact) return false
       if (filters.length === 'empty' && jobs !== 0) return false
       if (filters.length === 'short' && (jobs < 1 || jobs > 3)) return false
       if (filters.length === 'busy' && jobs < 4) return false

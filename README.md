@@ -37,7 +37,7 @@ For a static production build, run `npm run build` and serve the contents of `di
 
 The directory combines the [UM eMap](https://map.um.edu.mo/), [ICTO printer information](https://icto.um.edu.mo/printing/follow-you-student-printing/), [Library facilities](https://library.um.edu.mo/using_the_lib/facilities_en) and individual unit pages. Building access hours and staffed support hours are shown separately. Unpublished details are marked in the directory. The offline basemap uses OpenStreetMap contributors’ data; see [map attribution](public/maps/NOTICE.txt).
 
-The public prototype has no live printer queue or hardware-status feed connected. To exercise the queue filter, choose **Queue data → Simulated counts**. Numbers in that mode are stable fictional examples for each listing. PrintAssist does not send jobs to a real device or infer queue lengths from a student's Follow-You submissions.
+The public prototype has no live printer queue or hardware-status feed connected. To exercise the queue filter, choose **Queue data → Simulated counts**. Choose **Exact count…** to filter by any whole number from 0 to 100. To set a simulated queue to a particular value, open the listing and choose **Edit demo count** under **Pending jobs**. Edits stay in the current app session and clear when the page reloads or the study scenario resets. PrintAssist does not send jobs to a real device or infer queue lengths from a student's Follow-You submissions.
 
 ### Optional operator readings
 

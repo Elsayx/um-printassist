@@ -1,7 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { sites } from '../src/printers/directory'
-import { groupSites, initialFilters, matchSites } from '../src/printers/browse'
+import {
+  groupSites,
+  initialFilters,
+  matchSites,
+  parseQueueLength,
+} from '../src/printers/browse'
 
 test('rooms, exact building codes and conventional floor names resolve to the same public listings', () => {
   const run = (query: string) =>
@@ -39,4 +44,34 @@ test('counts for known devices and building coordinates stay consistent as filte
   assert.equal(library.lat, room.lat)
   assert.equal(library.lng, room.lng)
   assert.deepEqual(groupSites([]), [])
+})
+
+test('exact queue lengths include 0 and 100, with separate sources for demo and reported counts', () => {
+  const [target, other, unknown] = sites
+  const sample = [target, other, unknown]
+  for (let n = 0; n <= 100; n++) {
+    const counts = new Map([
+      [target.id, n],
+      [other.id, (n + 1) % 101],
+      [unknown.id, (n + 2) % 101],
+    ])
+    const readings = new Map([
+      [other.id, { pending: n }],
+      [unknown.id, { pending: null }],
+    ])
+    const exact = {
+      ...initialFilters,
+      length: 'exact' as const,
+      exact: String(n),
+    }
+    assert.equal(parseQueueLength(exact.exact), n)
+    assert.deepEqual(
+      matchSites(sample, { ...exact, queue: 'demo' }, readings, counts),
+      [target],
+    )
+    assert.deepEqual(matchSites(sample, exact, readings, counts), [other])
+  }
+  for (const invalid of ['', ' ', '-1', '101', '2.6', '1e2', '12x']) {
+    assert.equal(parseQueueLength(invalid), null)
+  }
 })
